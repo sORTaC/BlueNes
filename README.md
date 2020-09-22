@@ -12,6 +12,6 @@ https://en.wikipedia.org/wiki/MOS_Technology_6502
 
 https://www.youtube.com/watch?v=fWqBmmPQP40
 
-(R0M and RAM):
+(ROM and RAM):
 
 (PPU):
