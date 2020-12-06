@@ -1,4 +1,4 @@
-# NES-emulator
+# HolyNes
 
 helpful references:
 
