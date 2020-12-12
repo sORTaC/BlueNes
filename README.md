@@ -1,4 +1,5 @@
 # wipNes
+work-in-progress nes emulator
 
 helpful references:
 
