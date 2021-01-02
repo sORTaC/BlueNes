@@ -47,62 +47,67 @@ void NesPPU::ppu_write(int addr, uint8_t data)
 			ppu_ram[addr + 0x800] = data;
 		}
 	}
+	else if (addr >= 0x3f00 && addr <= 0x3F1F)
+	{
+		ppu_ram[addr] = data;
+		ppu_ram[addr + 0x20] = data;
+	}
 	else
 		ppu_ram[addr] = data;
 }
 
-uint16_t NesPPU::ppu_read(int addr) 
+uint16_t NesPPU::ppu_read(int addr)
 {
-	return ppu_ram[addr]; 
+	return ppu_ram[addr];
 }
 
 uint16_t NesPPU::interleave(uint16_t byte_0, uint16_t byte_1)
 {
-    int final = 0;
-    for (int i = 0; i < 8; i++)
-    {
-        int x_masked_i = (byte_0 & (1 << i));
-        int y_masked_i = (byte_1 & (1 << i));
+	int final = 0;
+	for (int i = 0; i < 8; i++)
+	{
+		int x_masked_i = (byte_0 & (1 << i));
+		int y_masked_i = (byte_1 & (1 << i));
 
-        final |= (x_masked_i << i);
-        final |= (y_masked_i << (i + 1));
-    }
-    return final;
+		final |= (x_masked_i << i);
+		final |= (y_masked_i << (i + 1));
+	}
+	return final;
 }
 
 void NesPPU::step_ppu()
 {
-    if (ppu_scanline >= 0 && ppu_scanline < 240)
-    {
+	if (ppu_scanline >= 0 && ppu_scanline < 240)
+	{
 
-    }
-    else if (ppu_scanline == 241 && ppu_cycles == 1)
-    {
-        busPtr->set_vblank(1);
-        busPtr->set_nmi(1);
-        drawNametable();
+	}
+	else if (ppu_scanline == 241 && ppu_cycles == 1)
+	{
+		busPtr->set_vblank(1);
+		busPtr->set_nmi(1);
+		drawNametable();
 		updateWindow();
-    }
-    else if (ppu_scanline == 261)
-    {
-        busPtr->set_vblank(0);
-        busPtr->set_nmi(0);
-        ppu_scanline = 0;
-    }
+	}
+	else if (ppu_scanline == 261)
+	{
+		busPtr->set_vblank(0);
+		busPtr->set_nmi(0);
+		ppu_scanline = 0;
+	}
 
-    ppu_cycles++;
+	ppu_cycles++;
 
-    if (ppu_cycles > 340)
-    {
-        ppu_cycles = 0;
-        ppu_scanline++;
-    }
+	if (ppu_cycles > 340)
+	{
+		ppu_cycles = 0;
+		ppu_scanline++;
+	}
 }
 
 void NesPPU::ppu_powerup()
 {
-    ppu_scanline = 0;
-    ppu_cycles = 0;
+	ppu_scanline = 0;
+	ppu_cycles = 0;
 }
 
 void NesPPU::updateWindow()
@@ -139,7 +144,9 @@ void NesPPU::drawNametable()
 			int c = pixel == 0 ? 0 : ((pal >> (location * 2)) & 0b11) * 4;
 
 			//store
-			pixels[y * 256 + x] = (pallete[ppu_read(0x3f00 + c + pixel)]);
+			int bkg_color = (pallete[ppu_read(0x3f00 + c + pixel)]);
+			(c + pixel) != 0 ? (bkg_color += (0xf << 24)) : bkg_color;
+			pixels[y * 256 + x] = bkg_color;
 		}
 		//sprite
 		for (int i = 0; i < 63; i++)
@@ -152,7 +159,7 @@ void NesPPU::drawNametable()
 			bool flip_horizontal = a & 0x40 ? 1 : 0;
 			bool flip_vertical = a & 0x80 ? 1 : 0;
 			int tile = busPtr->return_spr() + t * 16;
-			uint8_t priority = (a & 0x20) ? 0x00 : 0xff;
+			uint8_t priority = (a & 0x20);
 			uint8_t sprite_pixel = 0;
 
 			for (int k = 0; k < 8; k++)
@@ -184,19 +191,23 @@ void NesPPU::drawNametable()
 						int opt = (pos) * 2;
 						sprite_pixel = (sprite_pixel_help & (0x3 << opt)) >> opt;
 					}
-					pixels[(y + k + 1) * 256 + (x + l)] = pallete[ppu_read(0x3f10 + (a & 0x3) * 4 + sprite_pixel)] | (priority << 24);
+					if (sprite_pixel != 0)
+					{
+						uint8_t background_channel = pixels[(y + k + 1) * 256 + (x + l)] >> 24;
+						if (background_channel == 0)
+						{
+							pixels[(y + k + 1) * 256 + (x + l)] = pallete[ppu_read(0x3f10 + (a & 0x3) * 4 + sprite_pixel)];
+						}
+						else if (background_channel != 0)
+						{
+							if (priority == 0)
+							{
+								pixels[(y + k + 1) * 256 + (x + l)] = pallete[ppu_read(0x3f10 + (a & 0x3) * 4 + sprite_pixel)];
+							}
+						}
+					}
 				}
 			}
 		}
 	}
 }
-
-/*
-		for (int i = 0; i < 64 * 4; i+= 0x10)
-		{
-			for(int j = 0; j < 0x10; j++)
-				printf("%02x ", primary_oam[i + j]);
-			printf("\n");
-		}
-		printf("\nDone\n");
-*/
