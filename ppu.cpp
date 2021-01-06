@@ -32,6 +32,21 @@ NesPPU::~NesPPU()
 	SDL_Quit();
 }
 
+void NesPPU::ppu_write_4014(uint8_t data)
+{
+	dma_page = data;
+	int oam_addr_cpy = oam_addr;
+	for (int dma_addr = 0; dma_addr < 256; dma_addr++)
+	{
+		int addr = dma_addr + oam_addr_cpy;
+		if (addr > 256)
+			oam_addr_cpy = 0;
+		//need to implement cpu wait
+		int data = busPtr->ask_cpu(dma_page << 8 | dma_addr);
+		ppu_write_oam(addr, data);
+	}
+}
+
 void NesPPU::ppu_write(int addr, uint8_t data)
 {
 	if (addr >= 0x2000 && addr <= 0x3000)
@@ -112,18 +127,17 @@ void NesPPU::step_ppu()
 	}
 	else if (ppu_scanline == 241 && ppu_cycles == 1)
 	{
-		busPtr->set_vblank(1);
-		busPtr->set_nmi(1);
-		//busPtr->set_spritehit(0);
+		vblank = true;
+		nmi_occured = true;
 		drawBackground();
 		drawSprites();
 		updateWindow();
 	}
 	else if (ppu_scanline == 261)
 	{
-		busPtr->set_vblank(0);
-		busPtr->set_nmi(0);
-		busPtr->set_spritehit(0);
+		vblank = false;
+		nmi_occured = false;
+		sprite_0_hit = false;
 		ppu_scanline = 0;
 	}
 
@@ -151,6 +165,119 @@ void NesPPU::updateWindow()
 	SDL_RenderPresent(renderer);
 }
 
+uint8_t NesPPU::ppu_read_registers(uint16_t addr)
+{
+	uint8_t data;
+
+	switch (addr & 0x2007)
+	{
+	case 0x2000:
+		break;
+	case 0x2001:
+		break;
+	case 0x2002:
+		//clear nmi_occured
+		w = true;
+		nmi_occured = false;
+
+		if (vblank)
+			data = 0x80;
+		else
+			data = 0;
+
+		if (sprite_0_hit)
+			data += 0x40;
+
+		break;
+	case 0x2003:
+		break;
+	case 0x2004:
+		if (vblank)
+			return ppu_read_oam(oam_addr);
+		break;
+	case 0x2005:
+		break;
+	case 0x2006:
+		break;
+	case 0x2007:
+	{
+		data = ppu_buffer;
+		ppu_buffer = (uint8_t)ppu_read(v);
+		if (v > 0x3f00)
+			data = ppu_buffer;
+		//increment vram addr per read/write of ppudata
+		v += v_inc;
+		break;
+	}
+	}
+}
+
+void NesPPU::ppu_write_registers(uint16_t addr, uint8_t data)
+{
+	switch (addr & 0x2007)
+	{
+	case 0x2000:
+		v_inc = (data & 0x4) ? 32 : 1;
+		sprite_table = (data & 0x8) ? 0x1000 : 0x000;
+		background_table = (data & 0x10) ? 0x1000 : 0x000;
+		nmi_output = (data & 0x80) ? true : false;
+		break;
+	case 0x2001:
+		break;
+	case 0x2002:
+		oam_addr++;
+		break;
+	case 0x2003:
+		oam_addr = data;
+		break;
+	case 0x2004:
+		ppu_write_oam(oam_addr, data);
+		oam_addr++;
+		break;
+	case 0x2005:
+		if (w)
+		{
+			t += (data >> 3);
+			w = false;
+		}
+		else
+		{
+			t += ((data >> 3) & 0b111) << 5;
+			t += (data & 0b111) << 12;
+			t += (data >> 6) << 8;
+			w = true;
+		}
+		break;
+	case 0x2006://ppuaddr
+	{
+		//$2006 holds no memory
+		if (w)
+		{
+			//high byte
+			t &= 0x00ff;
+			t |= (data & 0x3F) << 8;
+			w = false;
+		}
+		else
+		{
+			//low byte
+			t &= 0xff00;
+			t |= data;
+			w = true;
+			v = t;
+		}
+		break;
+	}
+	case 0x2007://ppudata
+	{
+		ppu_write(v, data);
+		// increment vram addr per read/write of ppudata
+		v += v_inc;
+		break;
+	}
+	}
+}
+
 void NesPPU::drawBackground()
 {
 	uint16_t nametable_no = 0x2000;
@@ -160,39 +287,19 @@ void NesPPU::drawBackground()
 		//background
 		for (int x = 0; x < 256; x++)
 		{
-			int m = x;
-
-			if ((m + busPtr->cam_x) > 256)
-			{
-				switch (busPtr->x_select)
-				{
-				case 0:
-					nametable_no = 0x2400;
-					break;
-				case 1:
-					nametable_no = 0x2000;
-					break;
-				}
-				m -= (256 - busPtr->cam_x);
-			}
-			else
-			{
-				m += busPtr->cam_x;
-			}
-
 			//nametable byte
-			uint16_t addr_tile = nametable_no + (32 * (y / 8)) + (m / 8);
+			uint16_t addr_tile = nametable_no + (32 * (y / 8)) + (x / 8);
 			uint16_t tile_nr = ppu_read(addr_tile);
-			int addr = busPtr->return_bkg() + (tile_nr * 0x10) + (y % 8);
+			int addr = background_table + (tile_nr * 0x10) + (y % 8);
 			uint16_t pixel_help = (uint16_t)interleave(ppu_read(addr), ppu_read(addr + 8));
-			int pos = 7 - (m % 8);
+			int pos = 7 - (x % 8);
 			int opt = (pos) * 2;
 			uint8_t pixel = (pixel_help & (0x3 << opt)) >> opt;
 
 			//attrib byte
-			int attrib_byte = 0x2000 + 0x03C0 + (y / 32) * 8 + (m / 32);
+			int attrib_byte = 0x2000 + 0x03C0 + (y / 32) * 8 + (x / 32);
 			int pal = ppu_read(attrib_byte);
-			int location_x = (m / 16) & 1;
+			int location_x = (x / 16) & 1;
 			int location_y = (y / 16) & 1;
 			int location = (location_y << 1) | location_x;
 			int c = pixel == 0 ? 0 : ((pal >> (location * 2)) & 0b11) * 4;
@@ -228,7 +335,7 @@ void NesPPU::drawSprites()
 
 		bool flip_horizontal = a & 0x40 ? 1 : 0;
 		bool flip_vertical = a & 0x80 ? 1 : 0;
-		int tile = busPtr->return_spr() + t * 16;
+		int tile = sprite_table + t * 16;
 		uint8_t priority = (a & 0x20);
 		uint8_t sprite_pixel = 0;
 
@@ -272,9 +379,9 @@ void NesPPU::drawSprites()
 						}
 						else if (background_channel != 0)
 						{
-							if (!(busPtr->get_spritehit()))
+							if (!(sprite_0_hit))
 							{
-								busPtr->set_spritehit(1);
+								sprite_0_hit = true;
 							}
 
 							if (priority == 0)
