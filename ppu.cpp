@@ -22,7 +22,6 @@ NesPPU::NesPPU()
 	t = 0;
 	w = true;
 	oam_addr = 0;
-	dma_page = 0;
 }
 
 NesPPU::~NesPPU()
@@ -39,7 +38,7 @@ NesPPU::~NesPPU()
 
 void NesPPU::ppu_write_4014(uint8_t data)
 {
-	dma_page = data;
+	int dma_page = data;
 	int oam_addr_cpy = oam_addr;
 	for (int dma_addr = 0; dma_addr < 256; dma_addr++)
 	{
@@ -48,7 +47,7 @@ void NesPPU::ppu_write_4014(uint8_t data)
 			oam_addr_cpy = 0;
 		//need to implement cpu wait
 		int data = busPtr->ask_cpu(dma_page << 8 | dma_addr);
-		primary_oam[oam_addr] = data;
+		primary_oam[dma_addr] = data;
 		//printf("%x ", primary_oam[oam_addr]);
 	}
 }
@@ -129,38 +128,37 @@ void NesPPU::step_ppu()
 {
 	if (ppu_scanline >= 0 && ppu_scanline < 240)
 	{
-		drawBackgroundLines(ppu_scanline);
 		if (ppu_cycles >= 1 && ppu_cycles <= 64)
 		{
-			if(ppu_cycles <= 33)
+			if (ppu_cycles <= 33)
 				secondary_oam[ppu_cycles - 1] = 0xff;//init secondary oam to 0xff
 		}
-		if (ppu_cycles == 256)
+		if (ppu_cycles == 0)
 		{
 			evaluateSprites(ppu_scanline);
 		}
-		//for (int i = 0; i < 256; i += 0x10)
-		//{
-		//	for (int j = 0; j < 0x10; j++)
-		//	{
-		//		printf("%x ", primary_oam[j]);
-		//	}
-		//	printf("\n");
-		//}
-		//printf("\n");
-		//for (int i = 0; i < 32; i += 0x10)
-		//{
-		//	for (int j = 0; j < 0x10; j++)
-		//	{
-		//		printf("%x ", primary_oam[i]);
-		//	}
-		//	printf("\n");
-		//}
-		sprite_0_hit = (ppu_cycles >= sprite_hit_cycle) ? true : NULL;
-		if (ppu_cycles >= 257 && ppu_cycles <= 320)
+		if (ppu_cycles == sprite_hit_cycle)
+			sprite_0_hit = true;
+		if (ppu_scanline >= 1)
 		{
-			drawSpriteLines(ppu_scanline);
+			if (ppu_cycles == 0)
+			{
+				drawBackgroundLines(ppu_scanline);
+				drawSpriteLines(ppu_scanline);
+			}
 		}
+
+		if (ppu_cycles == 256)
+		{
+
+		}
+
+		if (ppu_cycles == 257)
+		{
+
+		}
+
+		if(ppu_cycles = 280)
 	}
 	else if (ppu_scanline == 241 && ppu_cycles == 1)
 	{
@@ -235,19 +233,21 @@ uint8_t NesPPU::ppu_read_registers(uint16_t addr)
 
 void NesPPU::evaluateSprites(int scanline)
 {
-	int sprite_count = 0;
+	sprite_count = 0;
 	for (int n = 0; n < 64; n++)
 	{
-		uint8_t y = primary_oam[n * 4 + 0];
+		int r = primary_oam[n * 4 + 0];
 		if (sprite_count < 8)
 		{
-			y = scanline - y;
-			if (y >= 0 && y < 8)
+			r = scanline - r;
+			if (r >= 0 && r < 8)
 			{
+				//if (scanline == 0)
+				//	printf("hit");
 				secondary_oam[sprite_count * 4 + 0] = primary_oam[n * 4 + 0];
-				secondary_oam[sprite_count * 4 + 0] = primary_oam[n * 4 + 1];
-				secondary_oam[sprite_count * 4 + 0] = primary_oam[n * 4 + 2];
-				secondary_oam[sprite_count * 4 + 0] = primary_oam[n * 4 + 3];
+				secondary_oam[sprite_count * 4 + 1] = primary_oam[n * 4 + 1];
+				secondary_oam[sprite_count * 4 + 2] = primary_oam[n * 4 + 2];
+				secondary_oam[sprite_count * 4 + 3] = primary_oam[n * 4 + 3];
 				sprite_count++;
 			}
 		}
@@ -354,14 +354,16 @@ void NesPPU::drawSpriteLines(int scanline)
 	int tile, row, tile_x, tile_y, pos, opt;
 	uint8_t y, t, a, x, flip, priority, sprite_pixel;
 	uint16_t sprite_pixel_help;
-	for (int i = 7; i >= 0; i--)
+	for (int i = (sprite_count - 1); i >= 0; i--)
 	{
 		y = secondary_oam[i * 4 + 0];
 		t = secondary_oam[i * 4 + 1];
 		a = secondary_oam[i * 4 + 2];
 		x = secondary_oam[i * 4 + 3];
-		row = scanline - y;
 
+		row = scanline - y;
+		bool flip_horizontal = a & 0x40 ? 1 : 0;
+		bool flip_vertical = a & 0x80 ? 1 : 0;
 		flip = ((a & 0x80) << 1) + (a & 0x40);
 		tile = sprite_table + t * 16;
 		priority = (a & 0x20);
@@ -369,45 +371,49 @@ void NesPPU::drawSpriteLines(int scanline)
 
 		tile_x = ppu_read(tile + row);
 		tile_y = ppu_read(tile + row + 8);
+
 		sprite_pixel_help = interleave(tile_x, tile_y);
 
 		for (int l = 0; l < 8; l++)
 		{
-			switch (flip)
+			if (flip_horizontal && flip_vertical)
 			{
-			case 0b00://no flip
-				pos = 7 - (l % 8);
-				opt = (pos) * 2;
-				sprite_pixel = (sprite_pixel_help & (0x3 << opt)) >> opt;
-				break;
-			case 0b10://flip vertical
-				break;
-			case 0b01://flip horizontal
+
+			}
+			else if (flip_vertical)
+			{
+
+			}
+			else if (flip_horizontal)
+			{
 				pos = (l % 8);
 				opt = (pos) * 2;
 				sprite_pixel = (sprite_pixel_help & (0x3 << opt)) >> opt;
-				break;
-			case 0b11://flip both
-				break;
+			}
+			else//no flip
+			{
+				pos = 7 - (l % 8);
+				opt = (pos) * 2;
+				sprite_pixel = (sprite_pixel_help & (0x3 << opt)) >> opt;
 			}
 			if (sprite_pixel != 0)
 			{
-				uint8_t background_channel = pixels[(y + row + 1) * 256 + (x + l)] >> 24;
+				uint8_t background_channel = pixels[(y + row) * 256 + (x + l)] >> 24;
 				if (background_channel == 0)
 				{
-					pixels[(y + row + 1) * 256 + (x + l)] = pallete[ppu_read(0x3f10 + (a & 0x3) * 4 + sprite_pixel)];
+					pixels[(y + row) * 256 + (x + l)] = pallete[ppu_read(0x3f10 + (a & 0x3) * 4 + sprite_pixel)];
 				}
 				else if (background_channel != 0)
 				{
 					if (!(sprite_0_hit))
 					{
-						sprite_hit_cycle = ppu_cycles;
+						sprite_hit_cycle = ppu_cycles + l;
 						sprite_0_hit = true;
 					}
 
 					if (priority == 0)
 					{
-						pixels[(y + row + 1) * 256 + (x + l)] = pallete[ppu_read(0x3f10 + (a & 0x3) * 4 + sprite_pixel)];
+						pixels[(y + row) * 256 + (x + l)] = pallete[ppu_read(0x3f10 + (a & 0x3) * 4 + sprite_pixel)];
 					}
 				}
 			}
