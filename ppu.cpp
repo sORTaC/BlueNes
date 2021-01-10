@@ -110,6 +110,44 @@ uint16_t NesPPU::ppu_read(int addr)
 	return ppu_ram[addr];
 }
 
+void NesPPU::increment_x()
+{
+	if ((v & 0x001F) == 31) 
+	{
+		v &= ~0x001F;      
+		v ^= 0x0400;	
+	}
+	else
+		v += 1;
+}
+
+void NesPPU::increment_y()
+{
+	if ((v & 0x7000) != 0x7000) 
+	{
+		v += 0x1000;
+	}
+	else
+	{
+		v &= ~0x7000;                   
+		int y = (v & 0x03E0) >> 5;       
+		if (y == 29)
+		{
+			y = 0;                     
+			v ^= 0x0800;
+		}
+		else if (y == 31)
+		{
+			y = 0;
+		}                       
+		else
+		{
+			y += 1;                      
+			v = (v & ~0x03E0) | (y << 5);
+		}
+	}
+}
+
 uint16_t NesPPU::interleave(uint16_t byte_0, uint16_t byte_1)
 {
 	int final = 0;
@@ -150,15 +188,24 @@ void NesPPU::step_ppu()
 
 		if (ppu_cycles == 256)
 		{
-
+			increment_y();
 		}
 
 		if (ppu_cycles == 257)
 		{
-
+		  v &= 0xffc0;
+		  v += (t & 0x1F);//Coarse X
+		  v &= 0xfbff;
+		  v += ((t >> 10) & 0x1) << 10;//Nametable X
 		}
 
-		if(ppu_cycles = 280)
+		if (ppu_cycles <= 256 && ppu_cycles >= 328)
+		{
+			if ((ppu_cycles - 1) % 8 == 7)
+			{
+				increment_x();
+			}
+		}
 	}
 	else if (ppu_scanline == 241 && ppu_cycles == 1)
 	{
@@ -172,6 +219,15 @@ void NesPPU::step_ppu()
 		nmi_occured = false;
 		sprite_0_hit = false;
 		ppu_scanline = 0;
+		if (ppu_cycles == 280)
+		{
+		  v &= 0xfc1f;
+		  v += ((t >> 5) & 0x1F) << 5; //coarse Y
+		  v &= 0xf7ff; 
+		  v += ((t >> 11) & 0x1) << 11;//Nametable y
+		  v &= 0x0fff;
+		  v += ((t >> 12) & 0x7) << 12;//Fine Y
+		}
 	}
 
 	ppu_cycles++;
@@ -259,10 +315,13 @@ void NesPPU::ppu_write_registers(uint16_t addr, uint8_t data)
 	switch (addr & 0x2007)
 	{
 	case 0x2000:
+		base_nt = data & 0x3;
 		v_inc = (data & 0x4) ? 32 : 1;
 		sprite_table = (data & 0x8) ? 0x1000 : 0x000;
 		background_table = (data & 0x10) ? 0x1000 : 0x000;
 		nmi_output = (data & 0x80) ? true : false;
+		t &= 0xF3FF;
+		t += (data & 0x3) << 10;
 		break;
 	case 0x2001:
 		break;
@@ -279,14 +338,17 @@ void NesPPU::ppu_write_registers(uint16_t addr, uint8_t data)
 	case 0x2005:
 		if (w)
 		{
+			fine_x = data & 0x07;
+			t &= 0xffe0;
 			t += (data >> 3);
 			w = false;
 		}
 		else
 		{
-			t += ((data >> 3) & 0b111) << 5;
-			t += (data & 0b111) << 12;
-			t += (data >> 6) << 8;
+			t &= 0xfc1f;
+			t += (data >> 3) << 5;
+			t &= 0x0fff;
+			t += (data & 0x7) << 12;
 			w = true;
 		}
 		break;
@@ -326,19 +388,20 @@ void NesPPU::drawBackgroundLines(int y)
 	for (int x = 0; x < 256; x++)
 	{
 		//nametable byte
-		uint16_t addr_tile = 0x2000 + (32 * (y / 8)) + (x / 8);
+
+		uint16_t addr_tile = 0x2000 | (v & 0x0FFF);
 		uint16_t tile_nr = ppu_read(addr_tile);
-		int addr = background_table + (tile_nr * 0x10) + (y % 8);
+		int addr = background_table + (tile_nr * 0x10) + (((v >> 12) & 0x3) % 8);
 		uint16_t pixel_help = (uint16_t)interleave(ppu_read(addr), ppu_read(addr + 8));
-		int pos = 7 - (x % 8);
-		int opt = (pos) * 2;
+		int pos = 7 - ((fine_x) % 8);
+		int opt = pos * 2;
 		uint8_t pixel = (pixel_help & (0x3 << opt)) >> opt;
 
 		//attrib byte
-		int attrib_byte = 0x2000 + 0x03C0 + (y / 32) * 8 + (x / 32);
+		int attrib_byte = 0x23C0 | (v & 0x0C00) | ((v >> 4) & 0x38) | ((v >> 2) & 0x07);
 		int pal = ppu_read(attrib_byte);
-		int location_x = (x / 16) & 1;
-		int location_y = (y / 16) & 1;
+		int location_x = v & 2;
+		int location_y = v & 64;
 		int location = (location_y << 1) | location_x;
 		int c = pixel == 0 ? 0 : ((pal >> (location * 2)) & 0b11) * 4;
 
