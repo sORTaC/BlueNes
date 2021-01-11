@@ -36,6 +36,14 @@ NesPPU::~NesPPU()
 	SDL_Quit();
 }
 
+void NesPPU::copy_x()
+{
+	v &= 0xffc0;
+	v += (t & 0x1F);//Coarse X
+	v &= 0xfbff;
+	v += ((t >> 10) & 0x1) << 10;//Nametable X
+}
+
 void NesPPU::ppu_write_4014(uint8_t data)
 {
 	int dma_page = data;
@@ -143,9 +151,19 @@ void NesPPU::increment_y()
 		else
 		{
 			y += 1;                      
-			v = (v & ~0x03E0) | (y << 5);
 		}
+		v = (v & ~0x03E0) | (y << 5);
 	}
+}
+
+void NesPPU::copy_y()
+{
+	v &= 0xfc1f;
+	v += ((t >> 5) & 0x1F) << 5; //coarse Y
+	v &= 0xf7ff;
+	v += ((t >> 11) & 0x1) << 11;//Nametable y
+	v &= 0x0fff;
+	v += ((t >> 12) & 0x7) << 12;//Fine Y
 }
 
 uint16_t NesPPU::interleave(uint16_t byte_0, uint16_t byte_1)
@@ -166,24 +184,14 @@ void NesPPU::step_ppu()
 {
 	if (ppu_scanline >= 0 && ppu_scanline < 240)
 	{
-		if (ppu_cycles >= 1 && ppu_cycles <= 64)
-		{
-			if (ppu_cycles <= 33)
-				secondary_oam[ppu_cycles - 1] = 0xff;//init secondary oam to 0xff
-		}
 		if (ppu_cycles == 0)
 		{
 			evaluateSprites(ppu_scanline);
 		}
+
 		if (ppu_cycles == sprite_hit_cycle)
-			sprite_0_hit = true;
-		if (ppu_scanline >= 1)
 		{
-			if (ppu_cycles == 0)
-			{
-				drawBackgroundLines(ppu_scanline);
-				drawSpriteLines(ppu_scanline);
-			}
+			sprite_0_hit = true;
 		}
 
 		if (ppu_cycles == 256)
@@ -191,20 +199,29 @@ void NesPPU::step_ppu()
 			increment_y();
 		}
 
-		if (ppu_cycles == 257)
-		{
-		  v &= 0xffc0;
-		  v += (t & 0x1F);//Coarse X
-		  v &= 0xfbff;
-		  v += ((t >> 10) & 0x1) << 10;//Nametable X
-		}
-
-		if (ppu_cycles <= 256 && ppu_cycles >= 328)
+		if (ppu_cycles <= 256 || ppu_cycles >= 328)
 		{
 			if ((ppu_cycles - 1) % 8 == 7)
 			{
 				increment_x();
 			}
+			else
+			{
+				nametable_byte = ppu_read(0x2000 | (v & 0x0FFF));
+				attribute_byte = ppu_read(0x23C0 | (v & 0x0C00) | ((v >> 4) & 0x38) | ((v >> 2) & 0x07));
+				low_bg_tile = ppu_read(background_table + (nametable_byte * 0x10) + (((v >> 12) & 0x3) % 8));
+				hi_bg_tile = ppu_read(background_table + (nametable_byte * 0x10) + (((v >> 12) & 0x3) % 8) + 8);
+				if (ppu_cycles >= 328)
+					drawBackgroundLines(ppu_scanline, ppu_cycles - 328);
+				else
+					drawBackgroundLines(ppu_scanline, ppu_cycles);
+				drawSpriteLines(ppu_scanline);
+			}
+		}
+
+		if (ppu_cycles == 257)
+		{
+			copy_x();
 		}
 	}
 	else if (ppu_scanline == 241 && ppu_cycles == 1)
@@ -221,12 +238,7 @@ void NesPPU::step_ppu()
 		ppu_scanline = 0;
 		if (ppu_cycles == 280)
 		{
-		  v &= 0xfc1f;
-		  v += ((t >> 5) & 0x1F) << 5; //coarse Y
-		  v &= 0xf7ff; 
-		  v += ((t >> 11) & 0x1) << 11;//Nametable y
-		  v &= 0x0fff;
-		  v += ((t >> 12) & 0x7) << 12;//Fine Y
+			copy_y();
 		}
 	}
 
@@ -298,8 +310,6 @@ void NesPPU::evaluateSprites(int scanline)
 			r = scanline - r;
 			if (r >= 0 && r < 8)
 			{
-				//if (scanline == 0)
-				//	printf("hit");
 				secondary_oam[sprite_count * 4 + 0] = primary_oam[n * 4 + 0];
 				secondary_oam[sprite_count * 4 + 1] = primary_oam[n * 4 + 1];
 				secondary_oam[sprite_count * 4 + 2] = primary_oam[n * 4 + 2];
@@ -382,34 +392,21 @@ void NesPPU::ppu_write_registers(uint16_t addr, uint8_t data)
 	}
 }
 
-void NesPPU::drawBackgroundLines(int y)
+void NesPPU::drawBackgroundLines(int y, int x)
 {
-	//background
-	for (int x = 0; x < 256; x++)
-	{
-		//nametable byte
+	//nametable byte
+	uint16_t pixel_help = interleave(low_bg_tile, hi_bg_tile);
+	int pos = 7 - ((fine_x) % 8);
+	uint8_t pixel = (pixel_help & (0x3 << (pos * 2))) >> (pos * 2);
 
-		uint16_t addr_tile = 0x2000 | (v & 0x0FFF);
-		uint16_t tile_nr = ppu_read(addr_tile);
-		int addr = background_table + (tile_nr * 0x10) + (((v >> 12) & 0x3) % 8);
-		uint16_t pixel_help = (uint16_t)interleave(ppu_read(addr), ppu_read(addr + 8));
-		int pos = 7 - ((fine_x) % 8);
-		int opt = pos * 2;
-		uint8_t pixel = (pixel_help & (0x3 << opt)) >> opt;
+	//attrib byte
+	int location = ((v & 64) << 1) | (v & 2);
+	int c = pixel == 0 ? 0 : ((attribute_byte >> (location * 2)) & 0b11) * 4;
 
-		//attrib byte
-		int attrib_byte = 0x23C0 | (v & 0x0C00) | ((v >> 4) & 0x38) | ((v >> 2) & 0x07);
-		int pal = ppu_read(attrib_byte);
-		int location_x = v & 2;
-		int location_y = v & 64;
-		int location = (location_y << 1) | location_x;
-		int c = pixel == 0 ? 0 : ((pal >> (location * 2)) & 0b11) * 4;
-
-		//store
-		int bkg_color = (pallete[ppu_read(0x3f00 + c + pixel)]);
-		(c + pixel) != 0 ? (bkg_color += (0xf << 24)) : bkg_color;
-		pixels[y * 256 + x] = bkg_color;
-	}
+	//store
+	int bkg_color = (pallete[ppu_read(0x3f00 + c + pixel)]);
+	(c + pixel) != 0 ? (bkg_color += (0xf << 24)) : bkg_color;
+	pixels[y * 256 + x] = bkg_color;
 }
 
 void NesPPU::drawSpriteLines(int scanline)
