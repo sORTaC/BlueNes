@@ -14,13 +14,19 @@ private:
 	uint8_t secondary_oam[8 * 4];
 
 	int ppu_cycles, ppu_scanline;
-	bool horizontal_mirroring = true;
+	int sprite_count;
+	bool horizontal_mirroring = false;
 	bool nmi_occured, nmi_output;
 	bool sprite_0_hit = false;
 	bool vblank;
 
+	uint8_t nametable_byte;
+	uint8_t attribute_byte;
+	uint8_t low_bg_tile;
+	uint8_t hi_bg_tile;
+
+	uint8_t base_nt;
 	uint8_t sprite_hit_cycle;
-	uint16_t dma_page;
 	uint16_t background_table;
 	uint16_t sprite_table;
 	uint8_t ppu_buffer;
@@ -28,8 +34,11 @@ private:
 	uint8_t oam_addr;
 	uint16_t v;
 	uint16_t t;
-	uint8_t x;
+	uint8_t fine_x;
 	bool w;
+
+	uint8_t scroll_x;
+	uint8_t scroll_y;
 
 	Bus* busPtr;
 	uint8_t* ptrToBus;
@@ -48,6 +57,12 @@ public:
 
 	uint16_t interleave(uint16_t, uint16_t);
 
+	void increment_x();
+	void increment_y();
+	void copy_x();
+	void copy_y();
+
+
 	void ppu_write(int addr, uint8_t data);
 	void ppu_write_4014(uint8_t data);
 	void ppu_write_registers(uint16_t addr, uint8_t data);
@@ -55,9 +70,9 @@ public:
 	uint16_t ppu_read(int addr);
 
 	bool check_for_nmi() { return (nmi_occured && nmi_output); }
-	void set_nmi_output(bool m) { nmi_output = m; }
+	void set_nmi_occured(bool m) { nmi_occured = m; }
 
-	void drawBackgroundLines(int);
+	void drawBackgroundLines(int, int);
 	void evaluateSprites(int);
 	void drawSpriteLines(int);
 	void updateWindow();
