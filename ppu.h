@@ -20,10 +20,10 @@ private:
 	bool sprite_0_hit = false;
 	bool vblank;
 
-	uint8_t nametable_byte;
-	uint8_t attribute_byte;
-	uint8_t low_bg_tile;
-	uint8_t hi_bg_tile;
+	int nametable_byte;
+	int attribute_byte;
+	int low_bg_tile;
+	int hi_bg_tile;
 
 	uint8_t base_nt;
 	uint8_t sprite_hit_cycle;
@@ -72,7 +72,7 @@ public:
 	bool check_for_nmi() { return (nmi_occured && nmi_output); }
 	void set_nmi_occured(bool m) { nmi_occured = m; }
 
-	void drawBackgroundLines(int, int);
+	void drawBackgroundLines(int);
 	void evaluateSprites(int);
 	void drawSpriteLines(int);
 	void updateWindow();
@@ -80,6 +80,3 @@ public:
 };
 
 #endif //NESPPU_H
-
-
-
