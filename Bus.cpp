@@ -4,6 +4,7 @@ Bus::Bus()
 {
 	cpu = NULL;
 	ppu = NULL;
+	keys = (uint8_t*)SDL_GetKeyboardState(NULL);
 	for (int i = 0; i < 0xffff; i++)
 	{
 		ram[i] = 0xEA;
@@ -23,7 +24,7 @@ uint8_t Bus::ask_cpu(uint16_t addr)
 
 uint16_t Bus::BusRead(uint16_t addr)
 {
-	uint8_t data;
+	uint8_t data = 0;
 
 	if (addr >= 0x000 && addr < 0x2000)
 	{
@@ -35,7 +36,14 @@ uint16_t Bus::BusRead(uint16_t addr)
 	}
 	else if (addr >= 0x4000 && addr < 0x4020)
 	{
-		data = ram[addr];
+		if (addr >= 0x4016 && addr <= 0x4017)
+		{
+
+		}
+		else
+		{
+			data = ram[addr];
+		}
 	}
 	else
 	{
@@ -61,9 +69,13 @@ void Bus::BusWrite(uint16_t addr, uint8_t data)
 		{
 			ppu->ppu_write_4014(data);
 		}
+		else if(addr >= 0x4016 && addr <= 0x4017)
+		{
+
+		}
 		else
 		{
-			ram[addr] = data;
+			ram[addr] = data;	
 		}
 	}
 	else
@@ -83,9 +95,10 @@ void Bus::run()
 	int cycles = 0;
 	while (true)
 	{
+
 		if (ppu->check_for_nmi()) {
 			cpu->nmi();
-			ppu->set_nmi_output(0);
+			ppu->set_nmi_occured(0);
 		}
 
 		cycles = cpu->step_instruction();
@@ -93,6 +106,7 @@ void Bus::run()
 		for (int i = 0; i < cycles * 3; i++) {
 			ppu->step_ppu();
 		}
+
 		cycles = 0;
 	}
 }
