@@ -16,6 +16,8 @@ private:
 	int ppu_cycles, ppu_scanline;
 	int sprite_count;
 	bool horizontal_mirroring = false;
+	bool mask_background;
+	bool mask_sprites;
 	bool nmi_occured, nmi_output;
 	bool sprite_0_hit = false;
 	bool vblank;
