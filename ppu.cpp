@@ -22,6 +22,8 @@ NesPPU::NesPPU()
 	t = 0;
 	w = true;
 	oam_addr = 0;
+	for (int i = 0; i * 240 * 256; i++)
+		pixels[i] = 0;
 }
 
 NesPPU::~NesPPU()
@@ -184,19 +186,20 @@ void NesPPU::step_ppu()
 {
 	if (ppu_scanline >= 0 && ppu_scanline < 240)
 	{
-		if (ppu_cycles == 0) { drawBackgroundLines(ppu_scanline); }
+		if (ppu_cycles == 0) {
+			if (mask_background) { drawBackgroundLines(ppu_scanline); }
+			if (ppu_scanline > 0)
+			{
+				evaluateSprites(ppu_scanline - 1);
+				if (mask_sprites) { drawSpriteLines(ppu_scanline - 1); }
+			}
+		}
 
 		if (ppu_cycles == sprite_hit_cycle) { sprite_0_hit = true; }
 
-		if (ppu_scanline > 0)
-		{
-			evaluateSprites(ppu_scanline - 1);
-			drawSpriteLines(ppu_scanline - 1);
-		}
-
 		if (ppu_cycles == 256) { increment_y(); }
 
-		if (ppu_cycles == 257) { copy_x(); }
+		if (ppu_cycles == 257) { copy_x(); } 
 	}
 	else if (ppu_scanline == 241 && ppu_cycles == 1)
 	{
@@ -305,6 +308,8 @@ void NesPPU::ppu_write_registers(uint16_t addr, uint8_t data)
 		t += (data & 0x3) << 10;
 		break;
 	case 0x2001:
+		mask_background = data & 0x8;
+		mask_sprites = data & 0x10;
 		break;
 	case 0x2002:
 		break;
@@ -366,18 +371,18 @@ void NesPPU::drawBackgroundLines(int y)
 {
 	for (int x = 0; x < 32; x++)
 	{
+		//nametable byte
+		nametable_byte = ppu_read(0x2000 | (v & 0x0FFF));
+		low_bg_tile = ppu_read(background_table + (nametable_byte * 8) + ((v >> 12) & 0x7));
+		hi_bg_tile = ppu_read(background_table + (nametable_byte * 8) + ((v >> 12) & 0x7) + 8);
+		attribute_byte = ppu_read(0x23C0 | (v & 0x0C00) | ((v >> 4) & 0x38) | ((v >> 2) & 0x07));
 		for (int l = 0; l < 8; l++)
 		{
-			//nametable byte
-			nametable_byte = ppu_read(0x2000 | (v & 0x0FFF));
-			low_bg_tile = ppu_read(background_table + (nametable_byte * 0x10) + ((v >> 12) & 0x3));
-			hi_bg_tile = ppu_read(background_table + (nametable_byte * 0x10) + ((v >> 12) & 0x3) + 8);
 			uint16_t pixel_help = interleave(low_bg_tile, hi_bg_tile);
-			int pos = 7 - ((l) % 8);
+			int pos = 7 - l;
 			uint8_t pixel = (pixel_help & (0x3 << (pos * 2))) >> (pos * 2);
 
 			//attrib byte
-			attribute_byte = ppu_read(0x23C0 | (v & 0x0C00) | ((v >> 4) & 0x38) | ((v >> 2) & 0x07));
 			int location = ((v & 64) << 1) | (v & 2);
 			int c = pixel == 0 ? 0 : ((attribute_byte >> (location * 2)) & 0b11) * 4;
 
