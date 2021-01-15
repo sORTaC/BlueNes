@@ -28,7 +28,7 @@ private:
 	int hi_bg_tile;
 
 	uint8_t base_nt;
-	uint8_t sprite_hit_cycle;
+	int sprite_hit_cycle;
 	uint16_t background_table;
 	uint16_t sprite_table;
 	uint8_t ppu_buffer;
