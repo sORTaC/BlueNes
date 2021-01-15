@@ -22,6 +22,7 @@ NesPPU::NesPPU()
 	t = 0;
 	w = true;
 	oam_addr = 0;
+	sprite_hit_cycle = 10000;
 	//for (int i = 0; i * 240 * 256; i++)
 	//	pixels[i] = 0;
 }
@@ -211,7 +212,7 @@ void NesPPU::step_ppu()
 
 		if (ppu_cycles == 256) { increment_y(); }
 
-		if (ppu_cycles == 257) { copy_x(); } 
+		if (ppu_cycles == 257) { copy_x(); }
 	}
 	else if (ppu_scanline == 241 && ppu_cycles == 1)
 	{
@@ -225,8 +226,8 @@ void NesPPU::step_ppu()
 		vblank = false;
 		sprite_0_hit = false;
 		nmi_occured = false;
-		copy_y();
 		ppu_scanline = 0;
+		copy_y();
 	}
 
 	ppu_cycles++;
@@ -288,6 +289,7 @@ uint8_t NesPPU::ppu_read_registers(uint16_t addr)
 
 void NesPPU::evaluateSprites(int scanline)
 {
+	sprite_0_present = false;
 	sprite_count = 0;
 	for (int n = 0; n < 64; n++)
 	{
@@ -297,6 +299,10 @@ void NesPPU::evaluateSprites(int scanline)
 			r = scanline - r;
 			if (r >= 0 && r < 8)
 			{
+				if (n == 0)
+				{
+					sprite_0_present = true;
+				}
 				secondary_oam[sprite_count * 4 + 0] = primary_oam[n * 4 + 0];
 				secondary_oam[sprite_count * 4 + 1] = primary_oam[n * 4 + 1];
 				secondary_oam[sprite_count * 4 + 2] = primary_oam[n * 4 + 2];
@@ -312,10 +318,9 @@ void NesPPU::ppu_write_registers(uint16_t addr, uint8_t data)
 	switch (addr & 0x2007)
 	{
 	case 0x2000:
-		base_nt = data & 0x3;
 		v_inc = (data & 0x4) ? 32 : 1;
 		sprite_table = (data & 0x8) ? 0x1000 : 0x000;
-		background_table = (data & 0x10)? 0x1000 : 0x000;
+		background_table = (data & 0x10) ? 0x1000 : 0x000;
 		nmi_output = (data & 0x80) ? true : false;
 		t &= 0xF3FF;
 		t |= (data & 0x3) << 10;
@@ -386,6 +391,7 @@ void NesPPU::drawBackgroundLines(int y)
 	uint16_t pixel_help;
 	int pos, bkg_color, c, location;
 	bool next_tile = true;
+	int m = fine_x;
 	for (int x = 0; x < 32; x++)
 	{
 		//nametable byte
@@ -408,7 +414,7 @@ void NesPPU::drawBackgroundLines(int y)
 				//store
 				bkg_color = (pallete[ppu_read(0x3f00 + c + pixel)]);
 				(c + pixel) != 0 ? (bkg_color += (0xf << 24)) : bkg_color;
-				pixels[y * 256 + x * 8 + l] = bkg_color;
+				pixels[y * 256 + x * (8-m) + l] = bkg_color;
 			}
 		}
 		next_tile = true;
@@ -473,7 +479,7 @@ void NesPPU::drawSpriteLines(int scanline)
 				}
 				else if (background_channel != 0)
 				{
-					if (!(sprite_0_hit)) { sprite_hit_cycle = ppu_cycles + l; }
+					if ((!(sprite_0_hit)) && (sprite_0_present) && (i==0)) { sprite_hit_cycle = x + l; }
 
 					if (priority == 0)
 					{
