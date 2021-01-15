@@ -199,7 +199,7 @@ void NesPPU::step_ppu()
 {
 	if (ppu_scanline >= 0 && ppu_scanline < 240)
 	{
-		if (ppu_cycles == 0) {
+		if (ppu_cycles == 0 ) {
 			if (mask_background) { drawBackgroundLines(ppu_scanline); }
 			if (ppu_scanline > 0)
 			{
@@ -219,14 +219,14 @@ void NesPPU::step_ppu()
 		vblank = true;
 		nmi_occured = true;
 		updateWindow();
-		sprite_0_hit = false;
+		//sprite_0_hit = false;
 	}
 	else if (ppu_scanline == 261)
 	{
 		vblank = false;
 		sprite_0_hit = false;
 		nmi_occured = false;
-		ppu_scanline = 0;
+		//ppu_scanline = 0;
 		copy_y();
 	}
 
@@ -236,7 +236,11 @@ void NesPPU::step_ppu()
 	{
 		ppu_cycles = 0;
 		ppu_scanline++;
+		if (ppu_scanline == 262)
+			ppu_scanline = 0;
 	}
+
+	//sprite_hit_cycle = 1000;
 }
 
 void NesPPU::ppu_powerup()
@@ -402,11 +406,11 @@ void NesPPU::drawBackgroundLines(int y)
 		pixel_help = interleave(low_bg_tile, hi_bg_tile);
 		for (int l = 0; l < 8; l++)
 		{
-			if ((fine_x + l) == 8)
+			if ((m + l) == 8)
 				next_tile = false;
 			if (next_tile)
 			{
-				pos = 7 - (fine_x + l);
+				pos = 7 - (m + l);
 				pixel = (pixel_help & (0x3 << (pos * 2))) >> (pos * 2);
 				//atrib
 				location = ((v >> 4) & 4) | (v & 2);
@@ -414,11 +418,11 @@ void NesPPU::drawBackgroundLines(int y)
 				//store
 				bkg_color = (pallete[ppu_read(0x3f00 + c + pixel)]);
 				(c + pixel) != 0 ? (bkg_color += (0xf << 24)) : bkg_color;
-				pixels[y * 256 + x * (8-m) + l] = bkg_color;
+				pixels[y * 256 + x * (8-fine_x) + l] = bkg_color;
 			}
 		}
 		next_tile = true;
-		fine_x = 0;
+		m = 0;
 		increment_x();
 	}
 }
