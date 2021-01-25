@@ -61,7 +61,6 @@ public:
 		printf(std::string(addr_string).c_str());
 		printf("\n");
 	}
-	//void debugTerminal();
 
 	//Bus read and write, and load functions
 	void write(uint16_t addr, uint8_t data);
@@ -85,8 +84,8 @@ public:
 	bool zpg_cross;
 	bool branch_succeeds;
 	bool page_crossed;
-	int CYCLE(int n) { if (zpg_cross) return (n + 1); else return n; }
-	int CYCLE_BRANCH(int n) { if (zpg_cross) return (n + 1); else return n; }
+	int CYCLE(int n) { if (page_crossed) return (n + 1); else return n; }
+	int CYCLE_BRANCH(int n) { if (branch_succeeds) return (n + 1); else return n; }
 	int CYCLE_CROSS() { if (page_crossed) return (2); else return 0; }
 
 	//reset vector

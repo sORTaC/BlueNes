@@ -296,7 +296,7 @@ void NesPPU::evaluateSprites(int scanline)
 		if (sprite_count < 8)
 		{
 			r = scanline - r;
-			if (r >= 0 && r < 8)
+			if (r >= 0 && r < sprite_size)
 			{
 				if (n == 0)
 				{
@@ -320,6 +320,7 @@ void NesPPU::ppu_write_registers(uint16_t addr, uint8_t data)
 		v_inc = (data & 0x4) ? 32 : 1;
 		sprite_table = (data & 0x8) ? 0x1000 : 0x000;
 		background_table = (data & 0x10) ? 0x1000 : 0x000;
+		sprite_size = (data & 0x20) ? 16 : 8;
 		nmi_output = (data & 0x80) ? true : false;
 		t &= 0xF3FF;
 		t |= (data & 0x3) << 10;
@@ -447,42 +448,136 @@ void NesPPU::drawSpriteLines(int scanline)
 
 		sprite_pixel_help = interleave(tile_x, tile_y);
 
-		for (int l = 0; l < 8; l++)
+		if (sprite_size == 8)
 		{
-			if (flip_horizontal && flip_vertical)
+			for (int l = 0; l < 8; l++)
 			{
-
-			}
-			else if (flip_vertical)
-			{
-
-			}
-			else if (flip_horizontal)
-			{
-				pos = (l % 8);
-				opt = (pos) * 2;
-				sprite_pixel = (sprite_pixel_help & (0x3 << opt)) >> opt;
-			}
-			else//no flip
-			{
-				pos = 7 - (l % 8);
-				opt = (pos) * 2;
-				sprite_pixel = (sprite_pixel_help & (0x3 << opt)) >> opt;
-			}
-			if (sprite_pixel != 0)
-			{
-				uint8_t background_channel = pixels[(y + row) * 256 + (x + l)] >> 24;
-				if (background_channel == 0)
-				{
-					pixels[(y + row) * 256 + (x + l)] = pallete[ppu_read(0x3f10 + (a & 0x3) * 4 + sprite_pixel)];
+				if (flip_horizontal && flip_vertical) {
+					tile_x = ppu_read(tile + 7 - row);
+					tile_y = ppu_read(tile + 7 - row + 8);
+					sprite_pixel_help = interleave(tile_x, tile_y);
+					pos = (l % 8);
+					opt = (pos) * 2;
+					sprite_pixel = (sprite_pixel_help & (0x3 << opt)) >> opt;
 				}
-				else if (background_channel != 0)
-				{
-					if ((!(sprite_0_hit)) && (sprite_0_present) && (i == 0)) { sprite_hit_cycle = x + l; }
+				else if (flip_vertical) {
+					tile_x = ppu_read(tile + 7 - row);
+					tile_y = ppu_read(tile + 7 - row + 8);
+					sprite_pixel_help = interleave(tile_x, tile_y);
+					pos = 7 - (l % 8);
+					opt = (pos) * 2;
+					sprite_pixel = (sprite_pixel_help & (0x3 << opt)) >> opt;
+				}
+				else if (flip_horizontal) {
+					pos = (l % 8);
+					opt = (pos) * 2;
+					sprite_pixel = (sprite_pixel_help & (0x3 << opt)) >> opt;
+				}
+				else {
+					pos = 7 - (l % 8);
+					opt = (pos) * 2;
+					sprite_pixel = (sprite_pixel_help & (0x3 << opt)) >> opt;
+				}
 
-					if (priority == 0)
+				if (sprite_pixel != 0) {
+					uint8_t background_channel = pixels[(y + row) * 256 + (x + l)] >> 24;
+					if (background_channel == 0) { pixels[(y + row) * 256 + (x + l)] = pallete[ppu_read(0x3f10 + (a & 0x3) * 4 + sprite_pixel)]; }
+					else if (background_channel != 0) {
+						if ((!(sprite_0_hit)) && (sprite_0_present) && (i == 0) && ((x + l) != 255)) { sprite_hit_cycle = x + l; }
+						if (priority == 0) { pixels[(y + row) * 256 + (x + l)] = pallete[ppu_read(0x3f10 + (a & 0x3) * 4 + sprite_pixel)]; }
+					}
+				}
+			}
+		}
+		else if (sprite_size == 16)
+		{
+			if (row < 8) {
+				tile = ((t & 0x1) ? 0x1000 : 0x0000) +  ((t & 0xFE) << 0) + row;
+				tile_x = ppu_read(tile);
+				tile_y = ppu_read(tile + 8);
+				for (int l = 0; l < 8; l++)
+				{
+					if (flip_horizontal && flip_vertical) {
+						tile = ((t & 0x1) ? 0x1000 : 0x0000) + ((t & 0xFE) << 0) + 7 - row;
+						tile_x = ppu_read(tile);
+						tile_y = ppu_read(tile + 8);
+						sprite_pixel_help = interleave(tile_x, tile_y);
+						pos = (l % 8);
+						opt = (pos) * 2;
+						sprite_pixel = (sprite_pixel_help & (0x3 << opt)) >> opt;
+					}
+					else if (flip_vertical) {
+						tile = ((t & 0x1) ? 0x1000 : 0x0000) + ((t & 0xFE) << 0) + 7 - row;
+						tile_x = ppu_read(tile);
+						tile_y = ppu_read(tile + 8);
+						sprite_pixel_help = interleave(tile_x, tile_y);
+						pos = 7 - (l % 8);
+						opt = (pos) * 2;
+						sprite_pixel = (sprite_pixel_help & (0x3 << opt)) >> opt;
+					}
+					else if (flip_horizontal) {
+						pos = (l % 8);
+						opt = (pos) * 2;
+						sprite_pixel = (sprite_pixel_help & (0x3 << opt)) >> opt;
+					}
+					else {
+						pos = 7 - (l % 8);
+						opt = (pos) * 2;
+						sprite_pixel = (sprite_pixel_help & (0x3 << opt)) >> opt;
+					}
+					if (sprite_pixel != 0) {
+						uint8_t background_channel = pixels[(y + row) * 256 + (x + l)] >> 24;
+						if (background_channel == 0) { pixels[(y + row) * 256 + (x + l)] = pallete[ppu_read(0x3f10 + (a & 0x3) * 4 + sprite_pixel)]; }
+						else if (background_channel != 0) {
+							if ((!(sprite_0_hit)) && (sprite_0_present) && (i == 0) && ((x + l) != 255)) { sprite_hit_cycle = x + l; }
+							if (priority == 0) { pixels[(y + row) * 256 + (x + l)] = pallete[ppu_read(0x3f10 + (a & 0x3) * 4 + sprite_pixel)]; }
+						}
+					}
+				}
+			}
+			else {
+				tile = ((t & 0x1) ? 0x1000 : 0x0000) + ((t & 0xFE) << 0) + row + 1;
+				tile_x = ppu_read(tile);
+				tile_y = ppu_read(tile + 8);
+				if (row < 8) {
+					for (int l = 0; l < 8; l++)
 					{
-						pixels[(y + row) * 256 + (x + l)] = pallete[ppu_read(0x3f10 + (a & 0x3) * 4 + sprite_pixel)];
+						if (flip_horizontal && flip_vertical) {
+							tile = ((t & 0x1) ? 0x1000 : 0x0000) + ((t & 0xFE) << 0) + 1 + 7 - row;
+							tile_x = ppu_read(tile);
+							tile_y = ppu_read(tile + 8);
+							sprite_pixel_help = interleave(tile_x, tile_y);
+							pos = (l % 8);
+							opt = (pos) * 2;
+							sprite_pixel = (sprite_pixel_help & (0x3 << opt)) >> opt;
+						}
+						else if (flip_vertical) {
+							tile = ((t & 0x1) ? 0x1000 : 0x0000) + ((t & 0xFE) << 0) + 1 + 7 - row;
+							tile_x = ppu_read(tile);
+							tile_y = ppu_read(tile + 8);
+							sprite_pixel_help = interleave(tile_x, tile_y);
+							pos = 7 - (l % 8);
+							opt = (pos) * 2;
+							sprite_pixel = (sprite_pixel_help & (0x3 << opt)) >> opt;
+						}
+						else if (flip_horizontal) {
+							pos = (l % 8);
+							opt = (pos) * 2;
+							sprite_pixel = (sprite_pixel_help & (0x3 << opt)) >> opt;
+						}
+						else {
+							pos = 7 - (l % 8);
+							opt = (pos) * 2;
+							sprite_pixel = (sprite_pixel_help & (0x3 << opt)) >> opt;
+						}
+						if (sprite_pixel != 0) {
+							uint8_t background_channel = pixels[(y + row) * 256 + (x + l)] >> 24;
+							if (background_channel == 0) { pixels[(y + row) * 256 + (x + l)] = pallete[ppu_read(0x3f10 + (a & 0x3) * 4 + sprite_pixel)]; }
+							else if (background_channel != 0) {
+								if ((!(sprite_0_hit)) && (sprite_0_present) && (i == 0) && ((x + l) != 255)) { sprite_hit_cycle = x + l; }
+								if (priority == 0) { pixels[(y + row) * 256 + (x + l)] = pallete[ppu_read(0x3f10 + (a & 0x3) * 4 + sprite_pixel)]; }
+							}
+						}
 					}
 				}
 			}

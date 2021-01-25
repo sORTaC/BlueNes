@@ -4,10 +4,22 @@ Bus::Bus()
 {
 	cpu = NULL;
 	ppu = NULL;
-	for (int i = 0; i < 0xffff; i++)
+	for (int i = 0; i < 0xffff; i++) { ram[i] = 0xEA; }
+}
+
+void Bus::BusMapperSet()
+{
+	cartridge.mapperLoad("roms/Contra.nes");
+	ppu->horizontal_mirroring = cartridge.mapper;//if not horizontal then has to be vertical
+	if (cartridge.chrRomSize != 0)
 	{
-		ram[i] = 0xEA;
+		for (int i = 0; i < 0x2000; i++) { bus_ppu_write(i, cartridge.mapperReadCHR(i)); }
 	}
+}
+
+void Bus::bus_ppu_write(uint16_t addr, uint8_t data)
+{
+	ppu->ppu_write(addr, data);
 }
 
 void Bus::ConnectBus(cpu6502* cpuPtr, NesPPU* ppuPtr)
@@ -37,14 +49,19 @@ uint16_t Bus::BusRead(uint16_t addr)
 	{
 		if (addr >= 0x4016 && addr <= 0x4017)
 		{
-			if (addr == 0x4016){
-				if (controller_index < 8) { data = 0x40 | read_controller(controller_index++); }
-				return 0x40;}
+			if (addr == 0x4016) {
+				if (controller_index < 8) { return 0x40 | read_controller(controller_index++); }
+				return 0x40;
+			}
 		}
 		else
 		{
 			data = ram[addr];
 		}
+	}
+	else if(addr >= 0x8000 && addr <= 0xFFFF)
+	{
+		data = cartridge.mapperRead(addr);
 	}
 	else
 	{
@@ -64,12 +81,12 @@ void Bus::write_controller(uint8_t* keys)
 	controller = 0;
 	controller |= keys[SDL_SCANCODE_J] ? 0x80 : 0x00;
 	controller |= keys[SDL_SCANCODE_K] ? 0x40 : 0x00;
-	controller |= keys[SDL_SCANCODE_S] ? 0x20 : 0x00;
-	controller |= keys[SDL_SCANCODE_A] ? 0x10 : 0x00;
-	controller |= keys[SDL_SCANCODE_D] ? 0x08 : 0x00;
-	controller |= keys[SDL_SCANCODE_W] ? 0x04 : 0x00;
-	controller |= keys[SDL_SCANCODE_E] ? 0x02 : 0x00;
-	controller |= keys[SDL_SCANCODE_Q] ? 0x01 : 0x00;
+	controller |= keys[SDL_SCANCODE_L] ? 0x20 : 0x00;
+	controller |= keys[SDL_SCANCODE_I] ? 0x10 : 0x00;
+	controller |= keys[SDL_SCANCODE_S] ? 0x08 : 0x00;//UP
+	controller |= keys[SDL_SCANCODE_DOWN] ? 0x04 : 0x00;//DOWN
+	controller |= keys[SDL_SCANCODE_A] ? 0x02 : 0x00;//LEFT
+	controller |= keys[SDL_SCANCODE_D] ? 0x01 : 0x00;//RIGHT
 }
 
 void Bus::BusWrite(uint16_t addr, uint8_t data)
@@ -88,7 +105,7 @@ void Bus::BusWrite(uint16_t addr, uint8_t data)
 		{
 			ppu->ppu_write_4014(data);
 		}
-		else if(addr >= 0x4016 && addr <= 0x4017)
+		else if (addr >= 0x4016 && addr <= 0x4017)
 		{
 			if (addr == 0x4016)
 			{
@@ -101,8 +118,12 @@ void Bus::BusWrite(uint16_t addr, uint8_t data)
 		}
 		else
 		{
-			ram[addr] = data;	
+			ram[addr] = data;
 		}
+	}
+	else if (addr >= 0x8000 && addr <= 0xFFFF)
+	{
+		cartridge.mapperWrite(data);
 	}
 	else
 	{
@@ -119,10 +140,15 @@ void Bus::init()
 void Bus::run()
 {
 	int cycles = 0;
-	while (true)
+	int control_cycles = 0;
+	bool running = true;
+	//int fps = 30;
+	//int delay = 1000 / fps;
+	//uint32_t frameStart;
+	//int frameTime;
+	while (running)
 	{
-		uint8_t* kb = (uint8_t*)SDL_GetKeyboardState(NULL);
-		write_controller(kb);
+		//frameStart = SDL_GetTicks();
 
 		if (ppu->check_for_nmi()) {
 			cpu->nmi();
@@ -130,10 +156,29 @@ void Bus::run()
 		}
 
 		cycles = cpu->step_instruction();
+		//cpu->printIns();
+		for (int i = 0; i < cycles * 3; i++) { 
+			ppu->step_ppu(); }
 
-		for (int i = 0; i < cycles * 3; i++) { ppu->step_ppu(); }
-
+		control_cycles += cycles;
 		cycles = 0;
+
+		if (control_cycles > 29780) {
+			SDL_Event event;
+			while (SDL_PollEvent(&event)) {
+				if (event.type == SDL_QUIT) {
+					running = false;
+				}
+			}
+			uint8_t* kb = (uint8_t*)SDL_GetKeyboardState(NULL);
+			write_controller(kb);
+			control_cycles = 0;
+		}
+		//frameTime = SDL_GetTicks() - frameStart;
+		//if (delay > frameTime)
+		//{
+		//	SDL_Delay(delay - frameTime);
+		//}
 	}
 }
 

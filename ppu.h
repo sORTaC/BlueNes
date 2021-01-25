@@ -15,23 +15,23 @@ private:
 
 	int ppu_cycles, ppu_scanline;
 	int sprite_count;
-	bool horizontal_mirroring = true;
+	bool sprite_cliping, back_cliping;
 	bool mask_background;
 	bool mask_sprites;
 	bool nmi_occured, nmi_output;
-	bool sprite_0_hit = false, sprite_0_present = false;
+	bool sprite_0_hit = false, sprite_0_present = false, sprite_overflow = false;
 	bool vblank;
 
 	int nametable_byte;
 	int attribute_byte;
 	int low_bg_tile;
 	int hi_bg_tile;
-
+	int sprite_size;
 	int sprite_hit_cycle;
 	uint16_t background_table;
 	uint16_t sprite_table;
 	uint8_t ppu_buffer;
-	uint8_t v_inc;
+	int v_inc;
 	uint8_t oam_addr;
 	uint16_t v;
 	uint16_t t;
@@ -45,6 +45,8 @@ private:
 	SDL_Texture* texture;
 	Uint32* pixels;
 public:
+	bool horizontal_mirroring = false;
+
 	NesPPU();
 	~NesPPU();
 
