@@ -69,6 +69,7 @@ public:
 	uint8_t ppu_read_registers(uint16_t addr);
 	uint16_t ppu_read(int addr);
 
+	void WriteToPixelArray(uint8_t sprite_pixel, int a, int y, int row, int x, int l, int i);
 	bool check_for_nmi() { return (nmi_occured && nmi_output); }
 	void set_nmi_occured(bool m) { nmi_occured = m; }
 
