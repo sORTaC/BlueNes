@@ -119,6 +119,7 @@ void NesPPU::ppu_write(int addr, uint8_t data)
 uint16_t NesPPU::ppu_read(int addr)
 {
 	return ppu_ram[addr];
+	
 }
 
 void NesPPU::increment_x()
@@ -395,11 +396,16 @@ void NesPPU::drawBackgroundLines(int y)
 	for (int x = 0; x < 32; x++)
 	{
 		//nametable byte
+		int addr = 0x2000 + v & 0x0fff;
 		nametable_byte = ppu_read(0x2000 | (v & 0x0FFF));
 		low_bg_tile = ppu_read(background_table + (nametable_byte * 16) + ((v >> 12) & 0x7));
 		hi_bg_tile = ppu_read(background_table + (nametable_byte * 16) + ((v >> 12) & 0x7) + 8);
 		attribute_byte = ppu_read(0x23C0 | (v & 0x0C00) | ((v >> 4) & 0x38) | ((v >> 2) & 0x07));
 		pixel_help = interleave(low_bg_tile, hi_bg_tile);
+		//if ( addr == 0x2217)
+		//{
+		//	printf("Nametable byte: %x Attribute byte: %x\n", nametable_byte, attribute_byte);
+		//}
 		for (int l = 0; l < 8; l++)
 		{
 			if ((m + l) == 8)
@@ -445,13 +451,11 @@ void NesPPU::drawSpriteLines(int scanline)
 		priority = (a & 0x20);
 		sprite_pixel = 0;
 
-		tile_x = ppu_read(tile + row);
-		tile_y = ppu_read(tile + row + 8);
-
-		sprite_pixel_help = interleave(tile_x, tile_y);
-
 		if (sprite_size == 8)
 		{
+			tile_x = ppu_read(tile + row);
+			tile_y = ppu_read(tile + row + 8);
+			sprite_pixel_help = interleave(tile_x, tile_y);
 			for (int l = 0; l < 8; l++)
 			{
 				if (flip_horizontal && flip_vertical) {
@@ -470,14 +474,15 @@ void NesPPU::drawSpriteLines(int scanline)
 				else {
 					sprite_pixel = (sprite_pixel_help & (0x3 << ((7 - (l % 8)) * 2))) >> ((7 - (l % 8)) * 2);
 				}
-				WriteToPixelArray(sprite_pixel, a, y, row, x, l, i);
+				WriteToPixelArray(sprite_pixel, a, y + 1, row, x, l, i);
 			}
 		}
 		else if (sprite_size == 16)
 		{
 			tile = (t & 0x1) * 0x1000 + (t & 0xFE) * 0x10;
-			tile_x = ppu_read(tile);
-			tile_y = ppu_read(tile + 8);
+			tile_x = ppu_read(tile + row);
+			tile_y = ppu_read(tile + row + 8);
+			sprite_pixel_help = interleave(tile_x, tile_y);
 			if (row < 8) 
 			{
 				for (int l = 0; l < 8; l++)
@@ -498,19 +503,19 @@ void NesPPU::drawSpriteLines(int scanline)
 						sprite_pixel = (sprite_pixel_help & (0x3 << (((l % 8)) * 2))) >> (((l % 8)) * 2);
 					}
 					else {
-						pos = 7 - (l % 8);
-						opt = (pos) * 2;
-						sprite_pixel = (sprite_pixel_help & (0x3 << opt)) >> opt;
+						sprite_pixel = (sprite_pixel_help & (0x3 << ((7 - (l % 8)) * 2))) >> ((7 - (l % 8)) * 2);
 					}
 
-					WriteToPixelArray(sprite_pixel, a, y, row, x, l, i);
+					WriteToPixelArray(sprite_pixel, a, y + 1, row, x, l, i);
 				}
 			}
 			else 
 			{
-				tile += 16;
-				tile_x = ppu_read(tile);
-				tile_y = ppu_read(tile + 8);
+				row -= 8;
+				tile = (t & 0x1) * 0x1000 + (t & 0xFE) * 0x10 + 16;
+				tile_x = ppu_read(tile + row );
+				tile_y = ppu_read(tile + row + 8);
+				sprite_pixel_help = interleave(tile_x, tile_y);
 				for (int l = 0; l < 8; l++)
 				{
 					if (flip_horizontal && flip_vertical) {
@@ -532,7 +537,7 @@ void NesPPU::drawSpriteLines(int scanline)
 						sprite_pixel = (sprite_pixel_help & (0x3 << ((7 - (l % 8)) * 2))) >> ((7 - (l % 8)) * 2);
 					}
 
-					WriteToPixelArray(sprite_pixel, a, y, row, x, l, i);
+					WriteToPixelArray(sprite_pixel, a, y + 1, row + 8, x, l, i);
 				}
 			}
 		}
@@ -550,3 +555,4 @@ void NesPPU::WriteToPixelArray(uint8_t sprite_pixel, int a, int y, int row, int 
 		}
 	}
 }
+ 
