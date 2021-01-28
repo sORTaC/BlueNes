@@ -3,6 +3,8 @@ work-in-progress nes emulator
 
 helpful references:
 
+(https://wiki.nesdev.com/w/index.php/Nesdev_Wiki)
+
 (CPU):
 
 http://rubbermallet.org/fake6502.c
