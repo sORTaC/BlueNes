@@ -120,7 +120,7 @@ uint8_t srom::mapperReadCHR(int addr)
 {
 	if (chrRomSize != 0)
 	{
-		uint8_t mapperAddr = 0;
+		int mapperAddr = 0;
 		if (control & 0x10)
 		{
 			if (addr >= 0x000 && addr <= 0xfff)
