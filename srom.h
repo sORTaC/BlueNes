@@ -24,6 +24,7 @@ public:
 	uint8_t mapper;
 	uint8_t prgRamSize;
 	uint8_t chrRomSize;
+	void recalculate();
 	void mapperLoad(const char*);
 	uint8_t mapperRead(int);
 	void mapperWrite(int, int);
