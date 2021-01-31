@@ -2,7 +2,10 @@
 
 void srom::mapperLoad(const char* fileAddress)
 {
-	control = 0;
+	reg_control = 0;
+	reg_chr0 = 0;
+	reg_chr1 = 0;
+	reg_prg = 0;
 	prgRomSize = 0;
 	chrRomSize = 0;
 	header.load(fileAddress, 0, 0x10);
@@ -22,7 +25,7 @@ void srom::mapperWrite(int addr, int data)
 		{
 			mregister = 0;
 			counter = 0;
-			control |= 0xC;
+			reg_control |= 0xC;
 			recalculate();
 		}
 		else
@@ -32,6 +35,22 @@ void srom::mapperWrite(int addr, int data)
 			counter++;
 			if (counter == 5)
 			{
+				if (addr >= 0x8000 && addr <= 0x9fff)
+				{
+					reg_control = mregister & 0x1f;
+				}
+				else if (addr >= 0xa000 && addr <= 0xbfff)
+				{
+					reg_chr0 = mregister & 0x1f;
+				}
+				else if (addr >= 0xc000 && addr <= 0xdfff)
+				{
+					reg_chr1 = mregister & 0x1f;
+				}
+				else if (addr >= 0xe000 && addr <= 0xffff)
+				{
+					reg_prg = mregister & 0x1f;
+				}
 				recalculate();
 				mregister = 0;
 				counter = 0;
@@ -42,9 +61,9 @@ void srom::mapperWrite(int addr, int data)
 
 void srom::recalculate()
 {
-	control = mregister & 0x1F;
+	//control = mregister & 0x1F;
 
-	switch (control & 0x3)
+	switch (reg_control & 0x3)
 	{
 	case 0:
 	case 1:
@@ -56,30 +75,30 @@ void srom::recalculate()
 		break;
 	}
 
-	if (control & 0x10){chrLO = mregister & 0x1f;}
-	else { CHR = mregister & 0x1e; }
+	if (reg_control & 0x10){chrLO = reg_chr0 & 0x1f;}
+	else { CHR = reg_chr0 & 0x1e; }
 
-	if (control & 0x10){chrHI = mregister & 0x1f;}
+	if (reg_control & 0x10){chrHI = reg_chr1 & 0x1f;}
 
-	uint8_t mode = (control >> 2) & 0x3;
+	uint8_t mode = (reg_control >> 2) & 0x3;
 
 	switch (mode)
 	{
 	case 0:
 	case 1:
 	{
-		PRG = (mregister & 0xe) >> 1;
+		PRG = (reg_prg & 0xe) >> 1;
 		break;
 	}
 	case 2:
 	{
 		prgLO = 0;
-		prgHI = mregister & 0xf;
+		prgHI = reg_prg & 0xf;
 		break;
 	}
 	case 3:
 	{
-		prgLO = mregister & 0xf;
+		prgLO = reg_prg & 0xf;
 		prgHI = prgRomSize - 1;
 		break;
 	}
@@ -91,7 +110,7 @@ uint8_t srom::mapperRead(int addr)
 	int mapperAddr = 0;
 	if (addr >= 0x8000)
 	{
-		if (control & 0x8)
+		if (reg_control & 0x8)
 		{
 			if(addr >= 0x8000 && addr <= 0xbfff)
 				mapperAddr = prgLO * 0x4000 + (addr & 0x3fff);
@@ -112,7 +131,7 @@ uint8_t srom::mapperReadCHR(int addr)
 	if (chrRomSize != 0)
 	{
 		int mapperAddr = 0;
-		if (control & 0x10)
+		if ( reg_control & 0x10)
 		{
 			if (addr >= 0x000 && addr <= 0xfff)
 			{
