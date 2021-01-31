@@ -22,7 +22,8 @@ void srom::mapperWrite(int addr, int data)
 		{
 			mregister = 0;
 			counter = 0;
-			control = 0;
+			control |= 0xC;
+			recalculate();
 		}
 		else
 		{
@@ -31,67 +32,57 @@ void srom::mapperWrite(int addr, int data)
 			counter++;
 			if (counter == 5)
 			{
-				if (addr >= 0x8000 && addr <= 0x9fff)
-				{
-					control = mregister & 0x1F;
-					switch (control & 0x3)
-					{
-					case 0:
-					case 1:
-					case 2:
-						mapper = 0;
-						break;
-					case 3:
-						mapper = 1;
-						break;
-					}
-				}
-				else if (addr >= 0xa000 && addr <= 0xbfff)
-				{
-					if (control & 0x10)
-					{
-						chrLO = mregister & 0x1f;
-					}
-					else
-					{
-						CHR = mregister & 0x1e;
-					}
-				}
-				else if (addr >= 0xc000 && addr <= 0xdfff)
-				{
-					if (control & 0x10)
-					{
-						chrHI = mregister & 0x1f;
-					}
-				}
-				else if (addr >= 0xe000 && addr <= 0xffff)
-				{
-					uint8_t mode = (control >> 2) & 0x3;
-					switch (mode)
-					{
-					case 0:
-					case 1:
-					{
-						PRG = (mregister & 0xe) >> 1;
-						break;
-					}
-					case 2:
-					{
-						prgLO = 0;
-						prgHI = mregister & 0xf;
-						break;
-					}
-					case 3:
-					{
-						prgLO = mregister & 0xf;
-						prgHI = prgRomSize - 1;
-					}
-					}
-				}
+				recalculate();
 				mregister = 0;
 				counter = 0;
 			}
 		}
+	}
+}
+
+void srom::recalculate()
+{
+	control = mregister & 0x1F;
+
+	switch (control & 0x3)
+	{
+	case 0:
+	case 1:
+	case 2:
+		mapper = 0;
+		break;
+	case 3:
+		mapper = 1;
+		break;
+	}
+
+	if (control & 0x10){chrLO = mregister & 0x1f;}
+	else { CHR = mregister & 0x1e; }
+
+	if (control & 0x10){chrHI = mregister & 0x1f;}
+
+	uint8_t mode = (control >> 2) & 0x3;
+
+	switch (mode)
+	{
+	case 0:
+	case 1:
+	{
+		PRG = (mregister & 0xe) >> 1;
+		break;
+	}
+	case 2:
+	{
+		prgLO = 0;
+		prgHI = mregister & 0xf;
+		break;
+	}
+	case 3:
+	{
+		prgLO = mregister & 0xf;
+		prgHI = prgRomSize - 1;
+		break;
+	}
 	}
 }
 
