@@ -19,11 +19,15 @@ private:
 	uint8_t prgHI;
 	uint8_t PRG;
 	uint8_t mregister;
+	uint8_t reg_control;
+	uint8_t reg_chr0, reg_chr1;
+	uint8_t reg_prg;
 	uint8_t counter;
 public:
 	uint8_t mapper;
 	uint8_t prgRamSize;
 	uint8_t chrRomSize;
+	void recalculate();
 	void mapperLoad(const char*);
 	uint8_t mapperRead(int);
 	void mapperWrite(int, int);
