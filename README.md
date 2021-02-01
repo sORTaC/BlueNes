@@ -1,6 +1,11 @@
 # wipNes
 work-in-progress nes emulator
 
+
+
+![zelda2](https://user-images.githubusercontent.com/59201614/106418772-13c06e80-647d-11eb-93ef-ee724c84c47e.png)
+![sw](https://user-images.githubusercontent.com/59201614/106435387-d2d65300-6498-11eb-86cf-3f95decafa4b.png)
+
 helpful references:
 
 (https://wiki.nesdev.com/w/index.php/Nesdev_Wiki)
