@@ -8,7 +8,6 @@ void NesApu::Init()
 	if (SDL_Init(SDL_INIT_AUDIO) < 0)
 		printf("Error init Audio");
 
-	///SDLInitAudio(44100, 1024);
 }
 
 void NesApu::apu_write(uint16_t addr, uint8_t data)
@@ -89,12 +88,27 @@ void NesApu::pulse1()
 		--sequence_counter;
 	else
 	{
-		if (((apu_cycles == 3729) || (apu_cycles == 7466) || (apu_cycles = 11186) || (apu_cycles == 14915)) && sequencer_mode)
+		if (((apu_cycles == 3729) || (apu_cycles == 7466) || (apu_cycles == 11186) || (apu_cycles == 14915)) && sequencer_mode)
 			Clock_HalfFrame();
-		else if (((apu_cycles == 3729) || (apu_cycles == 7466) || (apu_cycles = 11186) || (apu_cycles == 14915)) && !sequencer_mode)
+		else if (((apu_cycles == 3729) || (apu_cycles == 7466) || (apu_cycles == 11186) || (apu_cycles == 14915)) && !sequencer_mode)
 			Clock_QuarterFrame();
 		//do irq raise
+		++next_seq_phase;
+		int max_phase = sequencer_mode == 0 ? 4 : 5;
+		if (next_seq_phase > max_phase)
+			next_seq_phase = 0;
+
+		sequence_counter = ClocksToNextSequence();
 	}
+	if (dutytable[duty_counter] && lenCounter != 0 && !IsSweepForcingSilence())
+	{
+		if (decayEn)
+			output = decay_hidden_vol;
+		else
+			output = decay_V;
+	}
+	else
+		output = 0;
 }
 
 void NesApu::Clock_HalfFrame()
