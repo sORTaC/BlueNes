@@ -58,6 +58,7 @@ private:
 	int freq_counter, freq_timer;
 	bool decay_reset_flag, decayEn;;
 	bool irq_en, irq_pending, sweepEn, lenEn ,channelP1En;
+	int output;
 public:
 	void ConnectTotBus(Bus* ptr) {
 		busPtr = ptr;
