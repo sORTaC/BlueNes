@@ -26,9 +26,14 @@ http://www.obelisk.me.uk/6502/reference.html
 
 (ROM and RAM):
 
+
 (PPU):
 
-https://www.youtube.com/watch?v=-THeUXqR3zY&list=PLrOv9FMX8xJHqMvSGB_9G9nZZ_4IgteYf&index=5
+https://bugzmanov.github.io/nes_ebook/chapter_6_1.html
+
+(APU):
+
+https://www.youtube.com/watch?v=72dI7dB3ZvQ&list=PLrOv9FMX8xJHqMvSGB_9G9nZZ_4IgteYf&index=7
 
 (Other/General):
 
@@ -36,5 +41,4 @@ https://wiki.nesdev.com/w/index.php/Nesdev_Wiki
 
 https://emudev.de/nes-emulator/overview/
 
-https://bugzmanov.github.io/nes_ebook/chapter_6_1.html
 
