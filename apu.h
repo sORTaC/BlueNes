@@ -34,7 +34,7 @@ public:
 	uint8_t apu_read(uint16_t);
 	void apu_write(uint16_t, uint8_t);
 	uint8_t clock_pulse1(bool);
-    void step_apu();
+        void step_apu();
 	double getSample();
 	void pulse1();
 };
