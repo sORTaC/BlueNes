@@ -13,30 +13,30 @@ class NesApu
 {
 private:
 	Bus* busPtr;
-	int apu_cycles;
-	int lenCounter, duty_counter, duty_table;
-	int decay_loop, decay_V, decay_counter, decay_hidden_vol;
-	int sweep_counter, sweep_timer, sweep_neg, sweep_shift, sweep_reload;
-	int sequencer_mode, sequence_counter, next_seq_phase;
-	int freq_counter, freq_timer;
-	bool decay_reset_flag, decayEn;;
-	bool irq_en, irq_pending, sweepEn, lenEn ,channelP1En;
-	int output;
-	double finalSample;
+	struct sequencer
+	{
+		uint32_t sequence = 0x0000;
+		uint16_t timer = 0x0000;
+		uint16_t reload = 0x0000;
+		uint8_t output = 0x0000;
+	};
+	bool enQuarter;
+	bool enHalf;
+	int clock_count;
+	int frame_clock_counter;
+	bool pulse1_enable = false;
+	double pulse1_sample = 0.0;
+	sequencer pulse1_seq;
 public:
 	void ConnectTotBus(Bus* ptr) {
 		busPtr = ptr;
 	}
-    void step_apu();
-	int ClocksToNextSequence(void);
-	bool IsSweepForcingSilence();
-	void Clock_QuarterFrame();
-	void Clock_HalfFrame();
-	void Init();
-	double getSample();
-	void pulse1();
 	uint8_t apu_read(uint16_t);
 	void apu_write(uint16_t, uint8_t);
+	uint8_t clock_pulse1(bool);
+    void step_apu();
+	double getSample();
+	void pulse1();
 };
 
 #endif
