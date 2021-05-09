@@ -1,197 +1,247 @@
+#include "apu.h"
 #include "cpu.h"
-#include "mem.h"
-#include "cartridge.h"
+#include "Bus.h"
 #include "ppu.h"
-#include "SDL.h"
+#include "mem.h"
+#include <queue>
 #undef main
-///*
-//NOTES:-
-//1.Fix memory allocation
-//2.
-//*/
-//
+
+#define NB_SAMPLES 4096
+
 int main()
 {
-	SDL_Init(SDL_INIT_VIDEO);
-	SDL_Window* window = SDL_CreateWindow("NES", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 128 * 2, 256 * 2, 0);
-	SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-	SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR8888, SDL_TEXTUREACCESS_STATIC, 128, 256);
-
-	Uint32* pixels = new Uint32[128 * 256];
-
-	mem6502 rom_mem;
-	mem6502 cpu_mem;
-	mem6502 ppu_mem;
-
-	rom_mem.load("roms/donkey_kong_edited.nes", 0x000, 0xA000);
-
-	cpu6502 cpu(cpu_mem);
-	NesPPU ppu(ppu_mem, &cpu);
-
-	//prg_rom
-	for (int i = 0x0; i < 0x4000; i++)
-	{
-		cpu.write(0x8000 + i, rom_mem[i]);
-		cpu.write(0xC000 + i, rom_mem[i]);
-	}
-
-	//chr_rom
-	int inc = 0;
-	for (int i = 0x4000; i < 0x6000; i++)
-	{
-		ppu.ppuwrite(0x0000 + inc, rom_mem[i]);
-		inc++;
-	}
-
-	for (int y = 0; y < 256; y++)
-	{
-		for (int x = 0; x < 128; x++)
-		{
-			uint16_t addr = std::floor(x / 8 + 0.01) * 16 + std::floor(y / 8 + 0.01) * 256 + y % 8;
-			uint16_t pixel_help = (uint16_t)ppu.interleave(ppu.ppuread(addr), ppu.ppuread(addr + 8));
-			int pos = 7 - (x % 8);
-			int opt = (pos - 1) * 2;
-			uint8_t pixel = (pixel_help & (0x3 << opt)) >> opt;
-			uint8_t A, R, G, B;
-			A = R = G = B = 0;
-			switch (pixel)
-			{
-			case 0:
-				break;
-			case 1:
-				R = 255;
-				break;
-			case 2:
-				R = G = B = 150;
-				break;
-			case 3:
-				R = G = B = 200;
-				break;
-			}
-			int color = 0;
-			color |= (A << 24) + (R << 16) + (G << 8) + (B << 0);
-			pixels[y * 128 + x] = color;
-		}
-	}
-
-	cpu.runfor(50000000);
-	for (int i = -1; i < 260; i++)
-	{
-		ppu.Render(i);
-	}
-	for (int i = 0; i < 0x0400; i++)
-	{
-		printf("%x ", ppu.ppuread(0x2000 + i));
-	}
-	//uint16_t old_pc = cpu.getPC();
-	//cpu.setPC(old_pc);
-
-	//SDL_Event event;
-	//bool quit = false;
-	//while (!quit)
-	//{
-	//	SDL_UpdateTexture(texture, 0, pixels, 128 * sizeof(Uint32));
-	//	while (SDL_PollEvent(&event))
-	//	{
-	//		if (event.type == SDL_QUIT)
-	//		{
-	//			quit = true;
-	//		}
-	//	}
-	//	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 0);
-	//	SDL_RenderClear(renderer);
-	//	SDL_RenderCopy(renderer, texture, 0, 0);
-	//	SDL_RenderPresent(renderer);
-	//}
-
-	//delete[] pixels;
-	//SDL_DestroyWindow(window);
-	//SDL_DestroyRenderer(renderer);
-	//SDL_DestroyTexture(texture);
-	//window = NULL;
-	//renderer = NULL;
-	//texture = NULL;
-	//SDL_Quit();
+	Bus main;
+	cpu6502 cpu;
+	NesPPU ppu;
+	NesApu apu;
+	main.ConnectBus(&cpu, &ppu, &apu);
+	ppu.ConnectToBus(&main);
+	cpu.ConnectTotBus(&main);
+	apu.ConnectTotBus(&main);
+	main.BusMapperSet();
+	main.init();
+	main.run();
 	return 0;
 }
 
-
-
-
-
-
-//int main()
+////const int AMPLITUDE = 28000;
+////const int FREQUENCY = 44100;
+////
+////struct BeepObject
+////{
+////	double freq;
+////	int samplesLeft;
+////};
+////
+////class Beeper
+////{
+////private:
+////	double v;
+////	SDL_AudioDeviceID dev;
+////	std::queue<BeepObject>beeps;
+////public:
+////	Beeper();
+////	void beep(double freq, int duration);
+////	void generateSamples(Sint16* stream, int length);
+////	void wait();
+////};
+////
+////void audio_callback(void*, Uint8*, int);
+////
+////Beeper::Beeper()
+////{
+////    SDL_AudioSpec desiredSpec;
+////
+////    desiredSpec.freq = FREQUENCY;
+////    desiredSpec.format = AUDIO_S16SYS;
+////    desiredSpec.channels = 1;
+////    desiredSpec.samples = 4096;
+////    desiredSpec.callback = audio_callback;
+////    desiredSpec.userdata = this;
+////
+////    SDL_AudioSpec obtainedSpec;
+////
+////    // you might want to look for errors here
+////    dev = SDL_OpenAudioDevice(NULL, 0, &desiredSpec, &obtainedSpec, 0);
+////
+////    // start play audio
+////    SDL_PauseAudioDevice(dev, 0);
+////}
+////
+////void Beeper::generateSamples(Sint16* stream, int length)
+////{
+////    int i = 0;
+////    while (i < length) {
+////
+////        if (beeps.empty()) {
+////            while (i < length) {
+////                stream[i] = 0;
+////                i++;
+////            }
+////            return;
+////        }
+////        BeepObject& bo = beeps.front();
+////
+////        int samplesToDo = std::min(i + bo.samplesLeft, length);
+////        bo.samplesLeft -= samplesToDo - i;
+////
+////        while (i < samplesToDo) {
+////            stream[i] = AMPLITUDE * std::sin(v * 2 * M_PI / FREQUENCY);
+////            i++;
+////            v += bo.freq;
+////        }
+////
+////        if (bo.samplesLeft == 0) {
+////            beeps.pop();
+////        }
+////    }
+////}
+////
+////void Beeper::beep(double freq, int duration)
+////{
+////    BeepObject bo;
+////    bo.freq = freq;
+////    bo.samplesLeft = duration * FREQUENCY / 1000;
+////
+////    SDL_LockAudio();
+////    beeps.push(bo);
+////    SDL_UnlockAudio();
+////}
+////
+////void Beeper::wait()
+////{
+////    int size;
+////    do {
+////        SDL_Delay(20);
+////        SDL_LockAudio();
+////        size = beeps.size();
+////        SDL_UnlockAudio();
+////    } while (size > 0);
+////}
+////
+////void audio_callback(void* _beeper, Uint8* _stream, int _length)
+////{
+////    Sint16* stream = (Sint16*)_stream;
+////    int length = _length / 2;
+////    Beeper* beeper = (Beeper*)_beeper;
+////
+////    beeper->generateSamples(stream, length);
+////}
+////
+////int main(int argc, char* argv[])
+////{
+////    SDL_Init(SDL_INIT_AUDIO);
+////
+////    int duration = 1000;
+////    double Hz = 440;
+////
+////    Beeper b;
+////    b.beep(Hz, duration);
+////    b.wait();
+////
+////    return 0;
+////}
+//
+//#include <math.h>
+//#include <SDL.h>
+//#include <SDL_audio.h>
+//
+//const int AMPLITUDE = 28000;
+//const int SAMPLE_RATE = 44100;
+//
+//void audio_callback(void* user_data, Uint8* raw_buffer, int bytes)
 //{
-//	mem6502 mem;
-//	cpu6502 cpu(mem);
-//	//mem6502 ppumem(0x4000);
-//	//ppu2C02 ppu(ppumem, &cpu);
-//	////cartridge cartridge(&cpu, &ppu);
-//	////cartridge.load("roms/donkey_kong");
-//	return 0;
+//    Sint16* buffer = (Sint16*)raw_buffer;
+//    int length = bytes / 2; // 2 bytes per sample for AUDIO_S16SYS
+//    int& sample_nr(*(int*)user_data);
+//
+//    for (int i = 0; i < length; i++, sample_nr++)
+//    {
+//        double time = (double)sample_nr / (double)SAMPLE_RATE;
+//        double output = (Sint16)(AMPLITUDE * sin(2.0f * M_PI * 440.0f * time)); // render 441 HZ sine wave
+//        if (output > 0.0)
+//            buffer[i] = AMPLITUDE;
+//        else if (output < 0.0)
+//            buffer[i] = -AMPLITUDE;
+//        else
+//            buffer[i] = 0.0;
+//    }
+//}
+//
+//int main(int argc, char* argv[])
+//{
+//    if (SDL_Init(SDL_INIT_AUDIO) != 0) SDL_Log("Failed to initialize SDL: %s", SDL_GetError());
+//
+//    int sample_nr = 0;
+//
+//    SDL_AudioSpec want;
+//    want.freq = SAMPLE_RATE; // number of samples per second
+//    want.format = AUDIO_S16SYS; // sample type (here: signed short i.e. 16 bit)
+//    want.channels = 1; // only one channel
+//    want.samples = 2048; // buffer-size
+//    want.callback = audio_callback; // function SDL calls periodically to refill the buffer
+//    want.userdata = &sample_nr; // counter, keeping track of current sample number
+//    SDL_AudioDeviceID dev;
+//    SDL_AudioSpec have;
+//    dev = SDL_OpenAudioDevice(NULL, 0, &want, &have, 0);
+//    if (want.format != have.format) SDL_LogError(SDL_LOG_CATEGORY_AUDIO, "Failed to get the desired AudioSpec");
+//
+//    SDL_PauseAudioDevice(dev, 0); // start playing sound
+//    SDL_Delay(1000); // wait while sound is playing
+//    SDL_PauseAudioDevice(dev, 1); // stop playing sound
+//
+//    SDL_CloseAudio();
+//
+//    return 0;
 //}
 
-
-//#define BLAARG
-
-//BLAARG TEST INFO - PASS OR FAIL
-//01-basics - passed
-//02-implied - passed
-//03-immediate - passed
-//04-zero_page - passed
-//05-zp_xy - idk
-//06-abs - idk
-//07-abs_xy - idk
-//08-ind_x - idk
-//09-ind_y - idk
-//10-branches - passed
-//11-stack - passed
-//12-jmp_jsr - passed
-//13-rts - passed
-//14-rti - failed
-//15-brk - passed
-//16-special - passed
-
-//#define KLAUS2M5
-
-//int main()
-//{
+//#include <stdio.h>
+//#include <math.h>
+//#include <SDL.h>
 //
-//#ifdef BLAARG
+//static double x = 0;
 //
-//	mem6502 mem;
-//	cpu6502 cpu(mem);
-//	cartridge cartridge(&cpu, &ppu);
-//	cartridge.load("logandtests/rom_singles/09-ind_y.nes");
-//	cpu.write(0xffff, 0xe2);
-//	//cpu.mem_dump(0x8000, 0xffff);
-//	cpu.reset();
-//	cpu.runfor(50000000);
-//	for (int i = 0; i < 30; i++)
-//	{
-//		printf("%c ", cpu.read(0x6000 + i));
-//	}
+//float square(float x) {
+//    return sin(x) > 0 ? 1 : -1;
+//}
 //
-//#endif
+//static void my_callback(void* userdata, Uint8* stream, int len) {
+//    Sint16* stream16 = (Sint16*)stream;
 //
+//    int nb_samples = len / sizeof(Sint16);
+//    for (int i = 0; i < nb_samples; i++) {
+//        x += .05f;
+//        stream16[i] = sin(x) * 5000;
+//        stream16[i] += square(x) * 1600;
+//    }
+//}
 //
-//#ifdef KLAUS2M5
-//	mem6502 mem;
-//	mem.load("logandtests/6502_functional_test.bin", 0x000, 65536);
-//	cpu6502 cpu(mem);
-//	cpu.setPC(0x0400);
-//	cpu.runfor(100000000);
-//	cpu.state_dump();
+//int main(void) {
+//    SDL_Init(SDL_INIT_AUDIO);
 //
-//#endif
+//    // the representation of our audio device:
+//    SDL_AudioDeviceID audio_device;
 //
-//	//mem6502 cpumem;
-//	//cpu6502 cpu(cpumem);
-//	//cpu.write(0x2007, 0x50);
-//	//cpu.mem_dump(0x2000, 0x3fff);
+//    // setting up our audio format:
+//    SDL_AudioSpec audio_spec = { 0 };
+//    audio_spec.freq = 44100; // sampling rate
+//    audio_spec.format = AUDIO_S16SYS; // sample format
+//    audio_spec.channels = 1; // number of channels
+//    audio_spec.samples = 4096; // buffer size
+//    audio_spec.callback = my_callback;
+//    audio_spec.userdata = NULL;
 //
-//	return 0;
+//    // opening the default audio device:
+//    audio_device = SDL_OpenAudioDevice(NULL, 0, &audio_spec, NULL, 0);
+//
+//    // unpausing the audio device: starts playing the queued data
+//    SDL_PauseAudioDevice(audio_device, 0);
+//
+//    SDL_Delay(10 * 1000);
+//
+//    SDL_CloseAudioDevice(audio_device);
+//    SDL_Quit();
+//
+//    return 0;
 //}
 
-//MY TEST
-//	//mem.load("logandtests/code2.bin", 0x0600, 148);
