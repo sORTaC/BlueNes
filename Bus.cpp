@@ -1,19 +1,13 @@
 #include "Bus.h"
 static double x = 0;
 
-float square(float x) {
-	return sin(x) > 0 ? 1 : -1;
-}
+int c = 0;
+
+uint8_t buffer[4096];
 
 static void my_callback(void* userdata, Uint8* stream, int len) {
-	Sint16* stream16 = (Sint16*)stream;
-
-	int nb_samples = len / sizeof(Sint16);
-	for (int i = 0; i < nb_samples; i++) {
-		x += .05f;
-		stream16[i] = sin(x) * 5000;
-		stream16[i] += square(x) * 1600;
-	}
+	Sint16* stream16 = (Sint16*)buffer;
+	c = 0;
 }
 
 void Bus::outputSound(void) {
@@ -36,11 +30,6 @@ void Bus::outputSound(void) {
 
 	// unpausing the audio device: starts playing the queued data
 	SDL_PauseAudioDevice(audio_device, 0);
-
-	SDL_Delay(10 * 1000);
-
-	SDL_CloseAudioDevice(audio_device);
-	SDL_Quit();
 }
 
 Bus::Bus()
@@ -50,6 +39,7 @@ Bus::Bus()
 	apu = NULL;
 	for (int i = 0; i < 0xffff; i++) { ram[i] = 0xEA; }
 	setsamplefreq(44100);
+	audio_time = 0.0;
 }
 
 void Bus::BusMapperSet()
@@ -195,6 +185,8 @@ void Bus::init()
 
 void Bus::apu_run_emu(int& cycles, int& control_cycles, bool& running)
 {
+	outputSound();
+
 	ppu->horizontal_mirroring = cartridge.mapper;
 
 	if (ppu->check_for_nmi()) {
@@ -204,23 +196,23 @@ void Bus::apu_run_emu(int& cycles, int& control_cycles, bool& running)
 
 	cycles = cpu->step_instruction();
 
-	sample_ready = false;
 	audio_time += clock_time;
 
 	if (audio_time >= sample_time)
 	{
 		audio_time -= sample_time;
 		audiosample = apu->getSample();
-		sample_ready = true;
-	}
-
-	if (sample_ready)
-	{
-		outputSound();
+		buffer[c] = audiosample;
+		c++;
 	}
 
 	for (int i = 0; i < cycles * 3; i++) {
 		ppu->step_ppu();
+	}
+
+	if (cycles % 2 == 0)
+	{
+		apu->step_apu();
 	}
 
 	control_cycles += cycles;
@@ -254,5 +246,4 @@ void Bus::setsamplefreq(int rate)
 {
 	sample_time = 1.0 / (double)rate;
 	clock_time = 1.0 / 5369318.0;
-
 }
