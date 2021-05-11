@@ -57,7 +57,7 @@ uint8_t NesApu::clock_pulse1(bool enable)
 	if (enable)
 	{
 		pulse1_seq.timer--;
-		if (pulse1_seq.timer = 0xffff)
+		if (pulse1_seq.timer == 0xffff)
 		{
 			pulse1_seq.timer = pulse1_seq.reload + 1;
 			pulse1_seq.sequence = ((pulse1_seq.sequence & 0x0001) << 7) | ((pulse1_seq.sequence & 0x00FE) >> 1);
@@ -72,45 +72,45 @@ void NesApu::step_apu()
 	enQuarter = false;
 	enHalf = false;
 
-	if (clock_count % 6 == 0)
+	frame_clock_counter++;
+
+	if (frame_clock_counter == 3729)
 	{
-		frame_clock_counter++;
-
-		if (frame_clock_counter == 3729)
-		{
-			enHalf = true;
-		}
-
-		if (frame_clock_counter == 7457)
-		{
-			enHalf = true;
-			enQuarter = true;
-		}
-
-		if (frame_clock_counter == 11186)
-		{
-			enQuarter = true;
-		}
-
-		if (frame_clock_counter == 14916)
-		{
-			enHalf = true;
-			enQuarter = true;
-			frame_clock_counter = 0;
-		}
-
-		if (enHalf)
-		{
-
-		}
-
-		if (enQuarter)
-		{
-
-		}
-
-		pulse1_sample = clock_pulse1(pulse1_enable);
+		enHalf = true;
 	}
 
-	clock_count++;
+	if (frame_clock_counter == 7457)
+	{
+		enHalf = true;
+		enQuarter = true;
+	}
+
+	if (frame_clock_counter == 11186)
+	{
+		enQuarter = true;
+	}
+
+	if (frame_clock_counter == 14916)
+	{
+		enHalf = true;
+		enQuarter = true;
+		frame_clock_counter = 0;
+	}
+
+	if (enHalf)
+	{
+
+	}
+
+	if (enQuarter)
+	{
+
+	}
+
+	pulse1_sample = clock_pulse1(pulse1_enable);
+}
+
+double NesApu::getSample()
+{
+	return pulse1_seq.output;
 }
