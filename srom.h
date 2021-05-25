@@ -11,6 +11,7 @@ private:
 	mem6502 CartridgeData;
 	uint8_t BankSelect;
 	uint8_t prgRomSize;
+	uint8_t control;
 	uint8_t chrLO;
 	uint8_t chrHI;
 	uint8_t CHR;
@@ -24,6 +25,7 @@ private:
 	uint8_t counter;
 public:
 	uint8_t mapper;
+	uint8_t fourscreen_mapper;
 	uint8_t prgRamSize;
 	uint8_t chrRomSize;
 	void recalculate();
