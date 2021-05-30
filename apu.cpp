@@ -37,7 +37,7 @@ void NesApu::apu_write(uint16_t addr, uint8_t data)
 		SQ2_enable = (data >> 3) & 0x1;
 		Noise_enable = (data >> 5) & 0x1;
 		Triangle_enable = (data >> 4) & 0x1;
-		uint8_t apu_status;
+		apu_status = data;
 	case 0x4017:
 		mode = data & 0x80;
 		irq_disable = data & 0x40;
