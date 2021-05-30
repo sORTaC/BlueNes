@@ -79,7 +79,8 @@ void NesApu::clock_FrameSequencer()
 			clock_Envelope();
 			break;
 		case 3:
-			interrupt = true;
+			if(!irq_disabled)
+				interrupt = true;
 			clock_Sweep();
 			clock_Envelope();
 			clock_LengthCounter();
