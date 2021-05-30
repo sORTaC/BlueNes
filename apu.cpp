@@ -41,6 +41,16 @@ void NesApu::apu_write(uint16_t addr, uint8_t data)
 	case 0x4017:
 		mode = data & 0x80;
 		irq_disable = data & 0x40;
+		if(mode)/*mode 1 is immediately clocked*/
+		{
+			clock_Sweep();
+			clock_Envelope();
+			clock_LengthCounter();	
+		}
+		if(irq_disable)
+		{
+			interrupt = false;
+		}
 		break;
 	default:
 		printf("Addr here is not handled yet. Only working with sq1 right now =)");
@@ -55,6 +65,9 @@ uint8_t NesApu::apu_read(uint16_t addr)
 		uint8_t output = 0;
 		if(lenght_counter != 0)
 			output |= 0x1;
+		if(interrupt)
+			output |= 0x40;
+		interrupt = false;
 		return output;
 	}
 }
