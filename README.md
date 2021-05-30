@@ -23,8 +23,8 @@ https://www.youtube.com/watch?v=qJgsuQoy9bc
 
 http://www.obelisk.me.uk/6502/reference.html
 
-(ROM and RAM):
 
+(ROM and RAM):
 
 (PPU):
 
@@ -34,7 +34,9 @@ https://emudev.de/nes-emulator/overview/
 
 (APU):
 
-https://www.youtube.com/watch?v=72dI7dB3ZvQ&list=PLrOv9FMX8xJHqMvSGB_9G9nZZ_4IgteYf&index=7
+https://www.slack.net/~ant/nes-emu/apu_ref.txt
+
+http://forums.nesdev.com/viewtopic.php?t=13767
 
 (Other/General):
 
