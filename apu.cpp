@@ -269,8 +269,8 @@ void NesApu::apuStep(int cycles)
 	cpu_cycles += cycles;
 
 	//Frame Sequencer ticks at 240 hz or every 7457.5 CPU cycles
-	//but since APU runs at half the speed of the cpu i guess it should be 74578/2 = 3728.5 cycles?
-	if (cpu_cycles == 3728)
+	//but since APU runs at half the speed of the cpu i guess it should be 74578/2 = 3728.5 APU cycles?
+	if (cpu_cycles == 7457.5) /*using cpu cycles*/
 	{
 		clock_FrameSequencer();
 		cpu_cycles = 0;
