@@ -38,7 +38,8 @@ private:
 	double output_sample;
 
 	int cpu_cycles;
-
+	
+	uint8_t apu_status;
 	uint8_t step;
 	uint8_t len_counter;
 	uint8_t env_counter;
