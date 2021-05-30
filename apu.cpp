@@ -52,7 +52,10 @@ uint8_t NesApu::apu_read(uint16_t addr)
 {
 	if (addr == 0x4015)
 	{
-		return apu_status;
+		uint8_t output = 0;
+		if(lenght_counter != 0)
+			output |= 0x1;
+		return output;
 	}
 }
 
