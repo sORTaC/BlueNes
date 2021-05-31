@@ -1,13 +1,14 @@
 #include "Bus.h"
 
-Sint16 sound_buffer[735 * 6];
+Sint16 sound_buffer[735];
 
 static void my_callback(void* userdata, Uint8* stream, int len) {
 
 	Sint16* stream16 = (Sint16*)stream;
-
-	for (int i = 0; i < (735 * 6); i++) {
-		stream16[i] = sound_buffer[i];
+	int k = 0;
+	for (int i = 0; i < (735); i+=40) {
+		stream16[k] = sound_buffer[i];
+		k++;
 	}
 }
 
@@ -31,6 +32,8 @@ Bus::Bus()
 	audio_spec.userdata = NULL;
 
 	audio_device = SDL_OpenAudioDevice(NULL, 0, &audio_spec, NULL, 0);
+
+	apu_raises_irq = false;
 
 }
 
@@ -206,18 +209,24 @@ void Bus::run()
 			ppu->step_ppu();
 		}
 
+		for (int i = 0; i < cycles; i++)
+		{
+			apu->step_apu(cycles);
+		}
+
 		control_cycles += cycles;
+
 		cycles = 0;
 
-		if (apu->getSampleNumber() < (735 * 6))
+		if (apu->getSampleNumber() < 735)
 		{
 			sound_buffer[apu->getSampleNumber()] = apu->getSample();
 		}
-		else if (apu->getSampleNumber() == (735 * 6))
+		else if (apu->getSampleNumber() == 735)
 		{
 			//play audio
+			apu->resetSampleNumber();
 			SDL_PauseAudioDevice(audio_device, 0);
-
 		}
 
 		if (control_cycles > 29780) {
