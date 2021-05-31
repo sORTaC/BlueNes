@@ -308,7 +308,7 @@ void NesApu::clock_Sweep()
 		sweep_stepper++;
 }
 
-void NesApu::apuStep(int cycles)
+void NesApu::step_apu(int cycles)
 {
 	cpu_cycles += cycles;
 
@@ -321,7 +321,7 @@ void NesApu::apuStep(int cycles)
 	}
 }
 
-double NesApu::getSample()
+Sint16 NesApu::getSample()
 {
 	sample_updater++;
 	return output_sample;
