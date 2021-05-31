@@ -34,7 +34,7 @@ void NesApu::apu_write(uint16_t addr, uint8_t data)
 	switch (addr)
 	{
 	case 0x4000:
-		vol = data & 0x4;
+		vol = data & 0xF;
 		env_disable = (data >> 4) & 0x1;
 		loop_disable = (data >> 5) & 0x1;
 		duty = (data >> 6) & 0x3;
@@ -52,22 +52,22 @@ void NesApu::apu_write(uint16_t addr, uint8_t data)
 		break;
 	case 0x4003:
 		write_to_fourth_channel = true;
-		period |= ((data << 8) & 0x7);
-		length_index = (data >> 3);
+		period |= ((data & 0x7) << 3);
+		length_index = (data >> 3) & 0x1F;
 		//a write to the channel's 4th register immediately loads it with the value from len_table
 		if (!loop_disable)
 		{
-			len_counter = len_table[(length_index >> 4)][(length_index >> 3) & 0x1];
+			len_counter = len_table[(length_index >> 4) & 0xF][(length_index >> 3) & 0x1];
 		}
 		duty_counter = 0;
 		freq_counter = period;
 		break;
 	case 0x4015:
-		SQ1_enable = (data >> 2) & 0x1;
-		SQ2_enable = (data >> 3) & 0x1;
-		Noise_enable = (data >> 5) & 0x1;
-		Triangle_enable = (data >> 4) & 0x1;
-		apu_status = data;
+		SQ1_enable = data & 0x1;
+		SQ2_enable = data & 0x2;
+		Triangle_enable = data & 0x4;
+		Noise_enable = data & 0x8;
+		DMC_enable = data & 0x10;
 	case 0x4017:
 		mode = data & 0x80;
 		irq_disable = data & 0x40;
@@ -318,6 +318,7 @@ void NesApu::step_apu(int cycles)
 	{
 		clock_FrameSequencer();
 		cpu_cycles -= 7458;
+		printf("\n\n------\n\nperiod: %d\nsweep_negate:%d\nsweep_period:%d\nsweep_shift:%d\nenv_counter:%d\nenv_divider:%d\nvol:%d\nlen_counter:%d\noutput_sample:%d\n", period, sweep_negate, sweep_period, sweep_shift, env_counter, env_divider, vol, len_counter, output_sample);
 	}
 }
 
