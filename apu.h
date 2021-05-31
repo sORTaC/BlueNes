@@ -15,7 +15,7 @@ private:
 	Bus* busPtr;
 
 	//
-	double output_sample;
+	Sint16 output_sample;
 
 	int sample_updater = 0;
 	int cpu_cycles;
@@ -66,15 +66,16 @@ public:
 
 	//
 	int getSampleNumber() { return sample_updater; }
+	void resetSampleNumber() { sample_updater = 0; }
 	bool isSweepForcingSilence();
 	void clock_FrameSequencer();
 	void clock_LengthCounter();
 	void clock_Sweep();
 	void clock_Envelope();
-	double getSample();
+	Sint16 getSample();
 	//
 
-	void apuStep(int);
+	void step_apu(int);
 };
 
 #endif
