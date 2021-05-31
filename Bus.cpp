@@ -146,12 +146,17 @@ void Bus::BusWrite(uint16_t addr, uint8_t data)
 		{
 			ppu->ppu_write_4014(data);
 		}
-		else if (addr == 0x4015)
+		else if ((addr == 0x4015) || (addr == 0x4000) || (addr == 0x4001) || (addr == 0x4002) || (addr == 0x4003))
 		{
 			apu->apu_write(addr, data);
 		}
 		else if (addr >= 0x4016 && addr <= 0x4017)
 		{
+			if (addr == 0x0417)
+			{
+				apu->apu_write(addr, data);
+			}
+
 			if (addr == 0x4016)
 			{
 				strobe = data & 0x1;
