@@ -7,6 +7,7 @@ static void my_callback(void* userdata, Uint8* stream, int len) {
 	Sint16* stream16 = (Sint16*)stream;
 	int k = 0;
 	for (int i = 0; i < (735); i+=40) {
+		//printf("sound data: %d", sound_buffer[i]);
 		stream16[k] = sound_buffer[i];
 		k++;
 	}
@@ -82,7 +83,12 @@ uint16_t Bus::BusRead(uint16_t addr)
 	}
 	else if (addr >= 0x4000 && addr < 0x4020)
 	{
-		if (addr >= 0x4016 && addr <= 0x4017)
+		if (addr == 0x4015)
+		{
+			uint8_t flg = apu->apu_read(addr);
+			apu_raises_irq = flg & 0x40;
+		}
+		else if (addr >= 0x4016 && addr <= 0x4017)
 		{
 			if (addr == 0x4016) {
 				if (controller_index < 8) { return 0x40 | read_controller(controller_index++); }
@@ -142,8 +148,7 @@ void Bus::BusWrite(uint16_t addr, uint8_t data)
 		}
 		else if (addr == 0x4015)
 		{
-			uint8_t flg = apu->apu_read(addr);
-			apu_raises_irq = flg & 0x40;
+			apu->apu_write(addr, data);
 		}
 		else if (addr >= 0x4016 && addr <= 0x4017)
 		{
