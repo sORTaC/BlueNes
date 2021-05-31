@@ -218,11 +218,11 @@ void Bus::run()
 
 		cycles = 0;
 
-		if (apu->getSampleNumber() < 735)
+		if (apu->getSampleNumber() < (735))
 		{
 			sound_buffer[apu->getSampleNumber()] = apu->getSample();
 		}
-		else if (apu->getSampleNumber() == 735)
+		else if (apu->getSampleNumber() == (735))
 		{
 			//play audio
 			apu->resetSampleNumber();
