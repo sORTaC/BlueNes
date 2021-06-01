@@ -1,12 +1,12 @@
 #include "Bus.h"
 
-Sint16 sound_buffer[735];
+Sint16 sound_buffer[735 * 6];
 
 static void my_callback(void* userdata, Uint8* stream, int len) {
 
 	Sint16* stream16 = (Sint16*)stream;
 	int k = 0;
-	for (int i = 0; i < (735); i+=40) {
+	for (int i = 0; i < (735 * 6); i+=7) {
 		//printf("sound data: %d", sound_buffer[i]);
 		stream16[k] = sound_buffer[i];
 		k++;
@@ -28,7 +28,7 @@ Bus::Bus()
 	audio_spec.freq = 44100; // sampling rate
 	audio_spec.format = AUDIO_S16SYS; // sample format
 	audio_spec.channels = 1; // number of channels
-	audio_spec.samples = 4096; // buffer size
+	audio_spec.samples = 735 * 6; // buffer size
 	audio_spec.callback = my_callback;
 	audio_spec.userdata = NULL;
 
@@ -228,11 +228,11 @@ void Bus::run()
 
 		cycles = 0;
 
-		if (apu->getSampleNumber() < (735))
+		if (apu->getSampleNumber() < (735 * 6))
 		{
 			sound_buffer[apu->getSampleNumber()] = apu->getSample();
 		}
-		else if (apu->getSampleNumber() == (735))
+		else if (apu->getSampleNumber() == (735 * 6))
 		{
 			//play audio
 			apu->resetSampleNumber();
