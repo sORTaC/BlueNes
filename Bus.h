@@ -20,6 +20,7 @@ private:
 	bool apu_raises_irq;
 	uint8_t controller, controller_index;
 	SDL_AudioDeviceID audio_device;
+	int writePointer;
 public:
 	Bus();
 	bool chrFilled() { return cartridge.chrRomSize; }
