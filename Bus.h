@@ -1,30 +1,76 @@
-#ifndef  BUS_H
-#define  BUS_H
+#ifndef APU_H
+#define APU_H
 
-#include <vector>
-#include "cpu.h"
-#include "ppu.h"
+#include "SDL_audio.h"
+#include "SDL.h"
+#include <iostream>
+#include <cstdio>
 
-class Bus
+class Bus;
+
+class NesApu
 {
 private:
-	cpu6502* cpu;
-	NesPPU* ppu;
-	uint8_t ram[65536];
-	bool strobe;
-	uint8_t controller, controller_index;
+
+	Bus* busPtr;
+
+	Sint16 output_sample;
+	int cpu_cycles;
+
+	uint8_t duty_counter;
+	uint16_t freq_counter;
+	uint8_t step;
+	uint8_t len_counter;
+	uint8_t env_counter;
+	uint8_t env_divider;
+	uint8_t env_stepper;
+	uint8_t sweep_divider;
+	uint8_t sweep_stepper;
+	bool halt;
+	bool interrupt;
+	bool write_to_fourth_channel;
+	bool write_to_sweep_register;
+
+	//General
+	bool SQ1_enable;
+	bool SQ2_enable;
+	bool DMC_enable;
+	bool Noise_enable;
+	bool Triangle_enable;
+	//
+
+	//SQ1/SQ2
+	bool mode, irq_disable;
+	uint8_t duty, vol;
+	bool loop_disable, env_disable;
+	bool sweep_enable, sweep_negate;
+	uint8_t sweep_period, sweep_shift;
+	uint8_t length_index;
+	uint16_t period;
+	//
+
 public:
-	Bus();
-	void ConnectBus(cpu6502*, NesPPU*);
-	uint16_t BusRead(uint16_t);
-	void BusWrite(uint16_t, uint8_t);
-	uint8_t ask_cpu(uint16_t data);
-	void write_controller(uint8_t*);
-	uint8_t read_controller(int index);
-	void init();
-	void run();
+
+	//Attaches APU to the NES
+	void ConnectTotBus(Bus* ptr) {
+		busPtr = ptr;
+	}
+
+	//Register read/writes
+	uint8_t apu_read(uint16_t);
+	void apu_write(uint16_t, uint8_t);
+
+	//
+	bool isSweepForcingSilence();
+	void clock_FrameSequencer();
+	void clock_LengthCounter();
+	void clock_Sweep();
+	void clock_Envelope();
+	Sint16 getSample() { return output_sample; }
+	//
+
+	void step_apu(int);
 };
 
-#endif // ! BUS_H
-
+#endif
 
