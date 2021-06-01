@@ -14,10 +14,7 @@ private:
 
 	Bus* busPtr;
 
-	//
 	Sint16 output_sample;
-
-	int sample_updater = 0;
 	int cpu_cycles;
 
 	uint8_t duty_counter;
@@ -40,7 +37,6 @@ private:
 	bool DMC_enable;
 	bool Noise_enable;
 	bool Triangle_enable;
-	uint8_t apu_status;
 	//
 
 	//SQ1/SQ2
@@ -65,14 +61,12 @@ public:
 	void apu_write(uint16_t, uint8_t);
 
 	//
-	int getSampleNumber() { return sample_updater; }
-	void resetSampleNumber() { sample_updater = 0; }
 	bool isSweepForcingSilence();
 	void clock_FrameSequencer();
 	void clock_LengthCounter();
 	void clock_Sweep();
 	void clock_Envelope();
-	Sint16 getSample();
+	Sint16 getSample() { return output_sample; }
 	//
 
 	void step_apu(int);
