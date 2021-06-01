@@ -318,14 +318,8 @@ void NesApu::step_apu(int cycles)
 	{
 		clock_FrameSequencer();
 		cpu_cycles -= 7458;
-		printf("\n\n------\n\nperiod: %d\nsweep_negate:%d\nsweep_period:%d\nsweep_shift:%d\nenv_counter:%d\nenv_divider:%d\nvol:%d\nlen_counter:%d\noutput_sample:%d\n", period, sweep_negate, sweep_period, sweep_shift, env_counter, env_divider, vol, len_counter, output_sample);
+		//printf("\n\n------\n\nperiod: %d\nsweep_negate:%d\nsweep_period:%d\nsweep_shift:%d\nenv_counter:%d\nenv_divider:%d\nvol:%d\nlen_counter:%d\noutput_sample:%d\n", period, sweep_negate, sweep_period, sweep_shift, env_counter, env_divider, vol, len_counter, output_sample);
 	}
-}
-
-Sint16 NesApu::getSample()
-{
-	sample_updater++;
-	return output_sample;
 }
 
 bool NesApu::isSweepForcingSilence()
