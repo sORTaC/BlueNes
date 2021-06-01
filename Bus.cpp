@@ -2,14 +2,18 @@
 
 Sint16 sound_buffer[735 * 6];
 
+int readPointer = 0;
+
 static void my_callback(void* userdata, Uint8* stream, int len) {
 
 	Sint16* stream16 = (Sint16*)stream;
-	int k = 0;
-	for (int i = 0; i < (735 * 6); i+=7) {
-		//printf("sound data: %d", sound_buffer[i]);
-		stream16[k] = sound_buffer[i];
-		k++;
+
+	for (int i = 0; i <= len; i++) 
+	{
+		stream16[readPointer] = sound_buffer[readPointer];
+
+		if ((readPointer + 1) >= (735 * 6)) { readPointer = 0; }
+		else { readPointer++; }
 	}
 }
 
@@ -192,13 +196,11 @@ void Bus::run()
 	int cycles = 0;
 	int control_cycles = 0;
 	bool running = true;
-	//int fps = 1;
-	//int delay = 1000 / fps;
-	//uint32_t frameStart;
-	//int frameTime;
+	writePointer = 0;
+	float downsample = 0.0;
+	SDL_PauseAudioDevice(audio_device, 0);
 	while (running)
 	{
-		//frameStart = SDL_GetTicks();
 		ppu->horizontal_mirroring = cartridge.mapper;
 
 		if (apu_raises_irq)
@@ -214,30 +216,28 @@ void Bus::run()
 
 		cycles = cpu->step_instruction();
 
-		//cpu->printIns();
 		for (int i = 0; i < cycles * 3; i++) {
 			ppu->step_ppu();
 		}
 
-		for (int i = 0; i < cycles; i++)
+		apu->step_apu(cycles);
+
+		downsample += cycles;
+
+		if ((downsample >= 40.5)/* && (writePointer != readPointer)*/)
 		{
-			apu->step_apu(cycles);
+			sound_buffer[writePointer] = apu->getSample();
+			writePointer++;
+			if (writePointer >= (735 * 6))
+			{
+				writePointer = 0;
+			}
+			downsample -= 40.5;
 		}
 
 		control_cycles += cycles;
 
 		cycles = 0;
-
-		if (apu->getSampleNumber() < (735 * 6))
-		{
-			sound_buffer[apu->getSampleNumber()] = apu->getSample();
-		}
-		else if (apu->getSampleNumber() == (735 * 6))
-		{
-			//play audio
-			apu->resetSampleNumber();
-			SDL_PauseAudioDevice(audio_device, 0);
-		}
 
 		if (control_cycles > 29780) {
 			SDL_Event event;
@@ -250,11 +250,6 @@ void Bus::run()
 			write_controller(kb);
 			control_cycles = 0;
 		}
-		//frameTime = SDL_GetTicks() - frameStart;
-		//if (delay > frameTime)
-		//{
-		//	SDL_Delay(delay - frameTime);
-		//}
 	}
 }
 
