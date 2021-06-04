@@ -1,76 +1,42 @@
-#ifndef APU_H
-#define APU_H
+#ifndef  BUS_H
+#define  BUS_H
 
-#include "SDL_audio.h"
-#include "SDL.h"
-#include <iostream>
-#include <cstdio>
+#include <vector>
+#include "urom.h"
+#include "srom.h"
+#include "cpu.h"
+#include "ppu.h"
+#include "apu.h"
 
-class Bus;
-
-class NesApu
+class Bus
 {
 private:
-
-	Bus* busPtr;
-
-	Sint16 output_sample;
-	int cpu_cycles;
-
-	uint8_t duty_counter;
-	uint16_t freq_counter;
-	uint8_t step;
-	uint8_t len_counter;
-	uint8_t env_counter;
-	uint8_t env_divider;
-	uint8_t env_stepper;
-	uint8_t sweep_divider;
-	uint8_t sweep_stepper;
-	bool halt;
-	bool interrupt;
-	bool write_to_fourth_channel;
-	bool write_to_sweep_register;
-
-	//General
-	bool SQ1_enable;
-	bool SQ2_enable;
-	bool DMC_enable;
-	bool Noise_enable;
-	bool Triangle_enable;
-	//
-
-	//SQ1/SQ2
-	bool mode, irq_disable;
-	uint8_t duty, vol;
-	bool loop_disable, env_disable;
-	bool sweep_enable, sweep_negate;
-	uint8_t sweep_period, sweep_shift;
-	uint8_t length_index;
-	uint16_t period;
-	//
-
+	cpu6502* cpu;
+	NesPPU* ppu;
+	NesApu* apu;
+	srom cartridge;
+	uint8_t ram[65536];
+	bool strobe;
+	bool apu_raises_irq;
+	uint8_t controller, controller_index;
+	SDL_AudioDeviceID audio_device;
+	int writePointer;
 public:
-
-	//Attaches APU to the NES
-	void ConnectTotBus(Bus* ptr) {
-		busPtr = ptr;
-	}
-
-	//Register read/writes
-	uint8_t apu_read(uint16_t);
-	void apu_write(uint16_t, uint8_t);
-
-	//
-	bool isSweepForcingSilence();
-	void clock_FrameSequencer();
-	void clock_LengthCounter();
-	void clock_Sweep();
-	void clock_Envelope();
-	Sint16 getSample() { return output_sample; }
-	//
-
-	void step_apu(int);
+	Bus();
+	bool chrFilled() { return cartridge.chrRomSize; }
+	uint8_t bus_read_ppu(int);
+	void ConnectBus(cpu6502*, NesPPU*, NesApu*);
+	uint16_t BusRead(uint16_t);
+	void BusMapperSet();
+	void BusWrite(uint16_t, uint8_t);
+	uint8_t ask_cpu(uint16_t data);
+	void bus_ppu_write(uint16_t addr, uint8_t data);
+	void write_controller(uint8_t*);
+	uint8_t read_controller(int index);
+	void init();
+	void run();
 };
 
-#endif
+#endif // ! BUS_H
+
 

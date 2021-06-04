@@ -1,24 +1,76 @@
 #include "Bus.h"
 
+Sint16 sound_buffer[735 * 6];
+
+int readPointer = 0;
+
+static void my_callback(void* userdata, Uint8* stream, int len) {
+
+	Sint16* stream16 = (Sint16*)stream;
+
+	for (int i = 0; i < (len/2); i++) 
+	{
+		stream16[i] = sound_buffer[readPointer] * 10;
+
+		if ((readPointer + 1) >= (735 * 6)) { readPointer = 0; }
+		else { readPointer++; }
+	}
+}
+
 Bus::Bus()
 {
 	cpu = NULL;
 	ppu = NULL;
-	for (int i = 0; i < 0xffff; i++)
+	apu = NULL;
+
+	for (int i = 0; i < 0xffff; i++) { ram[i] = 0xEA; }
+
+	SDL_Init(SDL_INIT_AUDIO);
+
+	// setting up our audio format:
+	SDL_AudioSpec audio_spec = { 0 };
+	audio_spec.freq = 44100; // sampling rate
+	audio_spec.format = AUDIO_S16SYS; // sample format
+	audio_spec.channels = 1; // number of channels
+	audio_spec.samples = 512;
+	audio_spec.callback = my_callback;
+	audio_spec.userdata = NULL;
+
+	audio_device = SDL_OpenAudioDevice(NULL, 0, &audio_spec, NULL, 0);
+
+	apu_raises_irq = false;
+
+}
+
+void Bus::BusMapperSet()
+{
+	cartridge.mapperLoad("roms/tetris.nes");
+	if (cartridge.prgRamSize != 0)
 	{
-		ram[i] = 0xEA;
+		for (int i = 0; i < 0x2000; i++) { BusWrite(0x6000 + i, cartridge.mapperReadRAM(i)); }
 	}
 }
 
-void Bus::ConnectBus(cpu6502* cpuPtr, NesPPU* ppuPtr)
+void Bus::bus_ppu_write(uint16_t addr, uint8_t data)
+{
+	ppu->ppu_write(addr, data);
+}
+
+void Bus::ConnectBus(cpu6502* cpuPtr, NesPPU* ppuPtr, NesApu* apuPtr)
 {
 	cpu = cpuPtr;
 	ppu = ppuPtr;
+	apu = apuPtr;
 }
 
 uint8_t Bus::ask_cpu(uint16_t addr)
 {
 	return (uint8_t)cpu->read(addr);
+}
+
+uint8_t Bus::bus_read_ppu(int addr)
+{
+	return cartridge.mapperReadCHR(addr);
 }
 
 uint16_t Bus::BusRead(uint16_t addr)
@@ -35,16 +87,26 @@ uint16_t Bus::BusRead(uint16_t addr)
 	}
 	else if (addr >= 0x4000 && addr < 0x4020)
 	{
-		if (addr >= 0x4016 && addr <= 0x4017)
+		if (addr == 0x4015)
 		{
-			if (addr == 0x4016){
-				if (controller_index < 8) { data = 0x40 | read_controller(controller_index++); }
-				return 0x40;}
+			uint8_t flg = apu->apu_read(addr);
+			apu_raises_irq = flg & 0x40;
+		}
+		else if (addr >= 0x4016 && addr <= 0x4017)
+		{
+			if (addr == 0x4016) {
+				if (controller_index < 8) { return 0x40 | read_controller(controller_index++); }
+				return 0x40;
+			}
 		}
 		else
 		{
 			data = ram[addr];
 		}
+	}
+	else if (addr >= 0x8000 && addr <= 0xFFFF)
+	{
+		data = cartridge.mapperRead(addr);
 	}
 	else
 	{
@@ -64,12 +126,12 @@ void Bus::write_controller(uint8_t* keys)
 	controller = 0;
 	controller |= keys[SDL_SCANCODE_J] ? 0x80 : 0x00;
 	controller |= keys[SDL_SCANCODE_K] ? 0x40 : 0x00;
-	controller |= keys[SDL_SCANCODE_S] ? 0x20 : 0x00;
-	controller |= keys[SDL_SCANCODE_A] ? 0x10 : 0x00;
-	controller |= keys[SDL_SCANCODE_D] ? 0x08 : 0x00;
-	controller |= keys[SDL_SCANCODE_W] ? 0x04 : 0x00;
-	controller |= keys[SDL_SCANCODE_E] ? 0x02 : 0x00;
-	controller |= keys[SDL_SCANCODE_Q] ? 0x01 : 0x00;
+	controller |= keys[SDL_SCANCODE_L] ? 0x20 : 0x00;
+	controller |= keys[SDL_SCANCODE_I] ? 0x10 : 0x00;
+	controller |= keys[SDL_SCANCODE_S] ? 0x08 : 0x00;//UP
+	controller |= keys[SDL_SCANCODE_DOWN] ? 0x04 : 0x00;//DOWN
+	controller |= keys[SDL_SCANCODE_A] ? 0x02 : 0x00;//LEFT
+	controller |= keys[SDL_SCANCODE_D] ? 0x01 : 0x00;//RIGHT
 }
 
 void Bus::BusWrite(uint16_t addr, uint8_t data)
@@ -88,8 +150,17 @@ void Bus::BusWrite(uint16_t addr, uint8_t data)
 		{
 			ppu->ppu_write_4014(data);
 		}
-		else if(addr >= 0x4016 && addr <= 0x4017)
+		else if ((addr == 0x4015) || (addr == 0x4000) || (addr == 0x4001) || (addr == 0x4002) || (addr == 0x4003))
 		{
+			apu->apu_write(addr, data);
+		}
+		else if (addr >= 0x4016 && addr <= 0x4017)
+		{
+			if (addr == 0x0417)
+			{
+				apu->apu_write(addr, data);
+			}
+
 			if (addr == 0x4016)
 			{
 				strobe = data & 0x1;
@@ -101,8 +172,12 @@ void Bus::BusWrite(uint16_t addr, uint8_t data)
 		}
 		else
 		{
-			ram[addr] = data;	
+			ram[addr] = data;
 		}
+	}
+	else if (addr >= 0x8000 && addr <= 0xFFFF)
+	{
+		cartridge.mapperWrite(addr, data);
 	}
 	else
 	{
@@ -119,10 +194,20 @@ void Bus::init()
 void Bus::run()
 {
 	int cycles = 0;
-	while (true)
+	int control_cycles = 0;
+	bool running = true;
+	writePointer = 0;
+	float downsample = 0.0;
+	SDL_PauseAudioDevice(audio_device, 0);
+	while (running)
 	{
-		uint8_t* kb = (uint8_t*)SDL_GetKeyboardState(NULL);
-		write_controller(kb);
+		ppu->horizontal_mirroring = cartridge.mapper;
+
+		if (apu_raises_irq)
+		{
+			cpu->irq();
+			apu_raises_irq = false;
+		}
 
 		if (ppu->check_for_nmi()) {
 			cpu->nmi();
@@ -131,9 +216,40 @@ void Bus::run()
 
 		cycles = cpu->step_instruction();
 
-		for (int i = 0; i < cycles * 3; i++) { ppu->step_ppu(); }
+		for (int i = 0; i < cycles * 3; i++) {
+			ppu->step_ppu();
+		}
+
+		apu->step_apu(cycles);
+
+		downsample += cycles;
+
+		if ((downsample >= 40.5)/* && (writePointer != readPointer)*/)
+		{
+			sound_buffer[writePointer] = apu->getSample();
+			writePointer++;
+			if (writePointer >= (735 * 6))
+			{
+				writePointer = 0;
+			}
+			downsample -= 40.5;
+		}
+
+		control_cycles += cycles;
 
 		cycles = 0;
+
+		if (control_cycles > 29780) {
+			SDL_Event event;
+			while (SDL_PollEvent(&event)) {
+				if (event.type == SDL_QUIT) {
+					running = false;
+				}
+			}
+			uint8_t* kb = (uint8_t*)SDL_GetKeyboardState(NULL);
+			write_controller(kb);
+			control_cycles = 0;
+		}
 	}
 }
 
