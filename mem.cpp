@@ -12,6 +12,12 @@ mem6502::mem6502(int size)
 	mem6502init();
 }
 
+void mem6502::setSize(int size)
+{
+	mem.resize(size);
+	mem6502init();
+}
+
 void mem6502::mem6502init()
 {
 	for (int i = 0; i < mem.size(); i++)
@@ -39,17 +45,12 @@ void mem6502::load(char const* filepath, int start, int bytes)
 	}
 }
 
-uint8_t mem6502::operator[](uint16_t addr)const
+uint8_t mem6502::operator[](int addr)const
 {
 	return mem[addr];
 }
 
-uint8_t& mem6502::operator[](uint16_t addr)
-{
-	return mem[addr];
-}
-
-uint8_t mem6502::return_value(uint16_t addr)
+uint8_t& mem6502::operator[](int addr)
 {
 	return mem[addr];
 }

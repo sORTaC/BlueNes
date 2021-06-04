@@ -75,10 +75,10 @@ void srom::recalculate()
 		break;
 	}
 
-	if (reg_control & 0x10){chrLO = reg_chr0 & 0x1f;}
+	if (reg_control & 0x10) { chrLO = reg_chr0 & 0x1f; }
 	else { CHR = (reg_chr0 & 0x1e) >> 0; }
 
-	if (reg_control & 0x10){chrHI = reg_chr1 & 0x1f;}
+	if (reg_control & 0x10) { chrHI = reg_chr1 & 0x1f; }
 
 	uint8_t mode = (reg_control >> 2) & 0x3;
 
@@ -112,10 +112,10 @@ uint8_t srom::mapperRead(int addr)
 	{
 		if (reg_control & 0x8)
 		{
-			if(addr >= 0x8000 && addr <= 0xbfff)
+			if (addr >= 0x8000 && addr <= 0xbfff)
 				mapperAddr = prgLO * 0x4000 + (addr & 0x3fff);
 
-			if(addr >= 0xc000 && addr <= 0xffff)
+			if (addr >= 0xc000 && addr <= 0xffff)
 				mapperAddr = prgHI * 0x4000 + (addr & 0x3fff);
 		}
 		else
@@ -130,28 +130,31 @@ uint8_t srom::mapperReadCHR(int addr)
 {
 	if (chrRomSize != 0)
 	{
-		int mapperAddr = 0;
-		if ( reg_control & 0x10)
+		if (addr < 0x2000)
 		{
-			if (addr >= 0x000 && addr <= 0xfff)
+			int mapperAddr = 0;
+			if (reg_control & 0x10)
 			{
-				mapperAddr = chrLO * 0x1000 + (addr & 0x0fff);
-			}
+				if (addr >= 0x000 && addr <= 0xfff)
+				{
+					mapperAddr = chrLO * 0x1000 + (addr & 0x0fff);
+				}
 
-			if (addr >= 0x1000 && addr <= 0x1fff)
-			{
-				mapperAddr = chrHI * 0x1000 + (addr & 0x0fff);
+				if (addr >= 0x1000 && addr <= 0x1fff)
+				{
+					mapperAddr = chrHI * 0x1000 + (addr & 0x0fff);
+				}
 			}
+			else
+			{
+				mapperAddr = CHR * 0x2000 + (addr & 0x1fff);
+			}
+			return CartridgeData[0x10 + (prgRomSize) * 0x4000 + mapperAddr];
 		}
-		else
-		{
-			mapperAddr = CHR * 0x2000 + (addr & 0x1fff);
-		}
-		return CartridgeData[0x10 + (prgRomSize) * 0x4000 + mapperAddr];
 	}
 }
 
 uint8_t srom::mapperReadRAM(int addr)
 {
-	return CartridgeData[0x4000 * (prgRomSize) + 0x2000 * (chrRomSize) + addr];
+	return CartridgeData[0x4000 * (prgRomSize)+0x2000 * (chrRomSize)+addr];
 }

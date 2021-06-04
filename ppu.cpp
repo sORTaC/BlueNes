@@ -67,16 +67,24 @@ void NesPPU::ppu_write(int addr, uint8_t data)
 {
 	if (addr >= 0x2000 && addr <= 0x3000)
 	{
-		if (horizontal_mirroring)
+		if (/*fourscreen_mirroring*/ true)
+		{
+			ppu_ram[addr] = data;
+			ppu_ram[addr + 0x400] = data;
+			ppu_ram[addr + 0x800] = data;
+			ppu_ram[addr + 0xC00] = data;
+		}
+		else if (horizontal_mirroring)
 		{
 			ppu_ram[addr] = data;
 			ppu_ram[addr + 0x400] = data;
 		}
-		else
+		else //vertical mirroring
 		{
 			ppu_ram[addr] = data;
 			ppu_ram[addr + 0x800] = data;
 		}
+
 	}
 	else if (addr >= 0x3f00 && addr <= 0x3F1F)
 	{
@@ -118,7 +126,13 @@ void NesPPU::ppu_write(int addr, uint8_t data)
 
 uint16_t NesPPU::ppu_read(int addr)
 {
-	return ppu_ram[addr];
+	if ((addr < 0x2000) && (busPtr->chrFilled()))
+	{
+		uint8_t t = busPtr->bus_read_ppu(addr);
+		return busPtr->bus_read_ppu(addr);
+	}
+	else
+		return ppu_ram[addr];
 }
 
 void NesPPU::increment_x()
@@ -194,6 +208,24 @@ uint16_t NesPPU::interleave(uint16_t byte_0, uint16_t byte_1)
 
 void NesPPU::step_ppu()
 {
+	//printf("0x1f50 : %002x ", ppu_ram[0x1f50]);
+	//printf("0x20d0 : %002x ", ppu_ram[0x20d0]);
+	//ppu_ram[0x1f50] = 0xfc;
+	//ppu_ram[0x1f51] = 0x39;
+	//ppu_ram[0x1f52] = 0x01;
+	//ppu_ram[0x1f53] = 0x07;
+	//ppu_ram[0x1f54] = 0xff;
+	//ppu_ram[0x1f55] = 0xff;
+	//ppu_ram[0x1f56] = 0x3f;
+	//ppu_ram[0x1f57] = 0xff;
+	//ppu_ram[0x1f58] = 0x0b;
+	//ppu_ram[0x1f59] = 0xd6;
+	//ppu_ram[0x1f5a] = 0xfe;
+	//ppu_ram[0x1f5b] = 0xf9;
+	//ppu_ram[0x1f5c] = 0x07;
+	//ppu_ram[0x1f5d] = 0xde;
+	//ppu_ram[0x1f5e] = 0x1d;
+	//ppu_ram[0x1f5f] = 0x00;
 	if (ppu_scanline >= 0 && ppu_scanline < 240)
 	{
 		if (ppu_cycles == 0) {
@@ -235,7 +267,6 @@ void NesPPU::step_ppu()
 		if (ppu_scanline == 262)
 			ppu_scanline = 0;
 	}
-
 }
 
 void NesPPU::ppu_powerup()
@@ -296,7 +327,7 @@ void NesPPU::evaluateSprites(int scanline)
 		if (sprite_count < 8)
 		{
 			r = scanline - r;
-			if (r >= 0 && r < 8)
+			if (r >= 0 && r < sprite_size)
 			{
 				if (n == 0)
 				{
@@ -320,6 +351,7 @@ void NesPPU::ppu_write_registers(uint16_t addr, uint8_t data)
 		v_inc = (data & 0x4) ? 32 : 1;
 		sprite_table = (data & 0x8) ? 0x1000 : 0x000;
 		background_table = (data & 0x10) ? 0x1000 : 0x000;
+		sprite_size = (data & 0x20) ? 16 : 8;
 		nmi_output = (data & 0x80) ? true : false;
 		t &= 0xF3FF;
 		t |= (data & 0x3) << 10;
@@ -391,9 +423,11 @@ void NesPPU::drawBackgroundLines(int y)
 	int pos, bkg_color, c, location;
 	bool next_tile = true;
 	int m = fine_x;
+	int index;
 	for (int x = 0; x < 32; x++)
 	{
 		//nametable byte
+		int addr = 0x2000 + (v & 0x0fff);
 		nametable_byte = ppu_read(0x2000 | (v & 0x0FFF));
 		low_bg_tile = ppu_read(background_table + (nametable_byte * 16) + ((v >> 12) & 0x7));
 		hi_bg_tile = ppu_read(background_table + (nametable_byte * 16) + ((v >> 12) & 0x7) + 8);
@@ -413,7 +447,9 @@ void NesPPU::drawBackgroundLines(int y)
 				//store
 				bkg_color = (pallete[ppu_read(0x3f00 + c + pixel)]);
 				(c + pixel) != 0 ? (bkg_color += (0xf << 24)) : bkg_color;
-				pixels[y * 256 + x * 8 + l - fine_x] = bkg_color;
+				index = y * 256 + x * 8 + l - fine_x;
+				if(index >= 0)
+					pixels[index] = bkg_color;
 			}
 		}
 		next_tile = true;
@@ -424,7 +460,7 @@ void NesPPU::drawBackgroundLines(int y)
 
 void NesPPU::drawSpriteLines(int scanline)
 {
-	int tile, row, tile_x, tile_y, pos, opt;
+	int tile, row, tile_x, tile_y/*, pos, opt*/;
 	uint8_t y, t, a, x, flip, priority, sprite_pixel;
 	uint16_t sprite_pixel_help;
 	for (int i = (sprite_count - 1); i >= 0; i--)
@@ -442,50 +478,108 @@ void NesPPU::drawSpriteLines(int scanline)
 		priority = (a & 0x20);
 		sprite_pixel = 0;
 
-		tile_x = ppu_read(tile + row);
-		tile_y = ppu_read(tile + row + 8);
-
-		sprite_pixel_help = interleave(tile_x, tile_y);
-
-		for (int l = 0; l < 8; l++)
+		if (sprite_size == 8)
 		{
-			if (flip_horizontal && flip_vertical)
+			tile_x = ppu_read(tile + row);
+			tile_y = ppu_read(tile + row + 8);
+			sprite_pixel_help = interleave(tile_x, tile_y);
+			for (int l = 0; l < 8; l++)
 			{
-
-			}
-			else if (flip_vertical)
-			{
-
-			}
-			else if (flip_horizontal)
-			{
-				pos = (l % 8);
-				opt = (pos) * 2;
-				sprite_pixel = (sprite_pixel_help & (0x3 << opt)) >> opt;
-			}
-			else//no flip
-			{
-				pos = 7 - (l % 8);
-				opt = (pos) * 2;
-				sprite_pixel = (sprite_pixel_help & (0x3 << opt)) >> opt;
-			}
-			if (sprite_pixel != 0)
-			{
-				uint8_t background_channel = pixels[(y + row) * 256 + (x + l)] >> 24;
-				if (background_channel == 0)
-				{
-					pixels[(y + row) * 256 + (x + l)] = pallete[ppu_read(0x3f10 + (a & 0x3) * 4 + sprite_pixel)];
+				if (flip_horizontal && flip_vertical) {
+					tile_x = ppu_read(tile + 7 - row);
+					tile_y = ppu_read(tile + 7 - row + 8);
+					sprite_pixel = (interleave(tile_x, tile_y) & (0x3 << (((l % 8)) * 2))) >> (((l % 8)) * 2);
 				}
-				else if (background_channel != 0)
+				else if (flip_vertical) {
+					tile_x = ppu_read(tile + 7 - row);
+					tile_y = ppu_read(tile + 7 - row + 8);
+					sprite_pixel = (interleave(tile_x, tile_y) & (0x3 << ((7 - (l % 8)) * 2))) >> ((7 - (l % 8)) * 2);
+				}
+				else if (flip_horizontal) {
+					sprite_pixel = (sprite_pixel_help & (0x3 << (((l % 8)) * 2))) >> (((l % 8)) * 2);
+				}
+				else {
+					sprite_pixel = (sprite_pixel_help & (0x3 << ((7 - (l % 8)) * 2))) >> ((7 - (l % 8)) * 2);
+				}
+				WriteToPixelArray(sprite_pixel, a, y + 1, row, x, l, i);
+			}
+		}
+		else if (sprite_size == 16)
+		{
+			tile = (t & 0x1) * 0x1000 + (t & 0xFE) * 0x10;
+			tile_x = ppu_read(tile + row);
+			tile_y = ppu_read(tile + row + 8);
+			sprite_pixel_help = interleave(tile_x, tile_y);
+			if (row < 8) 
+			{
+				for (int l = 0; l < 8; l++)
 				{
-					if ((!(sprite_0_hit)) && (sprite_0_present) && (i == 0)) { sprite_hit_cycle = x + l; }
-
-					if (priority == 0)
-					{
-						pixels[(y + row) * 256 + (x + l)] = pallete[ppu_read(0x3f10 + (a & 0x3) * 4 + sprite_pixel)];
+					if (flip_horizontal && flip_vertical) {
+						tile += 16;
+						tile_x = ppu_read(tile + 7 - row);
+						tile_y = ppu_read(tile + 7 - row + 8);
+						sprite_pixel = (interleave(tile_x, tile_y) & (0x3 << ((((l % 8)) * 2)))) >> ((((l % 8)) * 2));
 					}
+					else if (flip_vertical) {
+						tile += 16;
+						tile_x = ppu_read(tile + 7 - row);
+						tile_y = ppu_read(tile + 7 - row + 8);
+						sprite_pixel = (interleave(tile_x, tile_y) & (0x3 << (((7 - (l % 8)) * 2)))) >> (((7 - (l % 8)) * 2));
+					}
+					else if (flip_horizontal) {
+						sprite_pixel = (sprite_pixel_help & (0x3 << (((l % 8)) * 2))) >> (((l % 8)) * 2);
+					}
+					else {
+						sprite_pixel = (sprite_pixel_help & (0x3 << ((7 - (l % 8)) * 2))) >> ((7 - (l % 8)) * 2);
+					}
+
+					WriteToPixelArray(sprite_pixel, a, y + 1, row, x, l, i);
+				}
+			}
+			else 
+			{
+				row -= 8;
+				tile = (t & 0x1) * 0x1000 + (t & 0xFE) * 0x10 + 16;
+				tile_x = ppu_read(tile + row );
+				tile_y = ppu_read(tile + row + 8);
+				sprite_pixel_help = interleave(tile_x, tile_y);
+				for (int l = 0; l < 8; l++)
+				{
+					if (flip_horizontal && flip_vertical) {
+						tile -= 16;
+						tile_x = ppu_read(tile + 7 - row);
+						tile_y = ppu_read(tile + 7 - row + 8);
+						sprite_pixel = (interleave(tile_x, tile_y) & (0x3 << (((l % 8)) * 2))) >> (((l % 8)) * 2);
+					}
+					else if (flip_vertical) {
+						tile -= 16;
+						tile_x = ppu_read(tile + 7 - row);
+						tile_y = ppu_read(tile + 7 - row + 8);
+						sprite_pixel = (interleave(tile_x, tile_y) & (0x3 << ((7 - (l % 8)) * 2))) >> ((7 - (l % 8)) * 2);
+					}
+					else if (flip_horizontal) {
+						sprite_pixel = (sprite_pixel_help & (0x3 << (((l % 8)) * 2))) >> (((l % 8)) * 2);
+					}
+					else {
+						sprite_pixel = (sprite_pixel_help & (0x3 << ((7 - (l % 8)) * 2))) >> ((7 - (l % 8)) * 2);
+					}
+
+					WriteToPixelArray(sprite_pixel, a, y + 1, row + 8, x, l, i);
 				}
 			}
 		}
 	}
 }
+
+void NesPPU::WriteToPixelArray(uint8_t sprite_pixel, int a, int y, int row, int x, int l, int i)
+{
+	if (sprite_pixel != 0) {
+		uint8_t background_channel = pixels[(y + row) * 256 + (x + l)] >> 24;
+		if (background_channel == 0) { pixels[(y + row) * 256 + (x + l)] = pallete[ppu_read(0x3f10 + (a & 0x3) * 4 + sprite_pixel)]; }
+		else if (background_channel != 0) {
+			if ((!(sprite_0_hit)) && (sprite_0_present) && (i == 0) && ((x + l) != 255)) { sprite_hit_cycle = x + l; }
+			if ((a & 0x20) == 0) { pixels[(y + row) * 256 + (x + l)] = pallete[ppu_read(0x3f10 + (a & 0x3) * 4 + sprite_pixel)]; }
+		}
+	}
+}
+ 

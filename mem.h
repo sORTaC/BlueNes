@@ -14,11 +14,11 @@ private:
 public:
 	mem6502();
 	mem6502(int size);
+	void setSize(int size);
 	void mem6502init();
-	uint8_t operator[](uint16_t)const;
-	uint8_t& operator[](uint16_t);
+	uint8_t operator[](int)const;
+	uint8_t& operator[](int);
 	void load(char const*, int start, int bytes);
-	uint8_t return_value(uint16_t addr);
 	void contents();
 };
 
