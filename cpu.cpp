@@ -1,95 +1,20 @@
 #include "cpu.h"
 #include "Bus.h"
 
-//void cpu6502::debugTerminal()
-//{
-//    SDL_Init(SDL_INIT_VIDEO);
-//    TTF_Init();
-//    SDL_Window* window = SDL_CreateWindow("Cpu Debug Terminal", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 640, 480, 0);
-//    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-//    TTF_Font* Sans = TTF_OpenFont("Padauk-Regular.ttf", 20);
-//
-//    int instruction_count = 0;
-//
-//    std::array<std::string, 30> opinfo;
-//    opinfo.fill("No Instruction Executed");
-//
-//    SDL_Surface* surface;
-//    SDL_Texture* texture;
-//    SDL_Rect rect;
-//    SDL_Color White = { 255, 255, 255 };
-//
-//    bool quit = false;
-//    SDL_Event event;
-//
-//    while (!quit)
-//    {
-//        std::vector<std::string> info;
-//
-//        while (SDL_PollEvent(&event))
-//        {
-//            if (event.type == SDL_QUIT)
-//            {
-//                quit = true;
-//            }
-//            if (event.type == SDL_KEYDOWN)
-//            {
-//                step_instruction();
-//                opinfo[instruction_count] = op_string + std::string(" ") + addr_string;
-//                instruction_count++;
-//                if (instruction_count >= 30)
-//                    instruction_count = 0;
-//            }
-//        }
-//
-//        info.push_back("PC: " + std::to_string(pc));
-//        info.push_back("A: " + std::to_string(A));
-//        info.push_back("X: " + std::to_string(X));
-//        info.push_back("Y: " + std::to_string(Y));
-//        info.push_back("SP: " + std::to_string(sp));
-//        info.push_back("FLG: " + std::to_string(status));
-//
-//        SDL_SetRenderDrawColor(renderer, 0, 0, 0, NULL);
-//        SDL_RenderClear(renderer);
-//
-//        //cpu status
-//        for (int i = 0; i < info.size(); i++)
-//        {
-//            surface = TTF_RenderText_Blended(Sans, info[i].c_str(), White);
-//            texture = SDL_CreateTextureFromSurface(renderer, surface);
-//            rect = { 0,15 * i,surface->w, surface->h };
-//            SDL_RenderCopy(renderer, texture, NULL, &rect);
-//            SDL_FreeSurface(surface);
-//            SDL_DestroyTexture(texture);
-//            surface = NULL;
-//            texture = NULL;
-//        }
-//        //instructions
-//        for(int j = 0; j < opinfo.size(); j++)
-//        {
-//            surface = TTF_RenderText_Blended(Sans, opinfo[j].c_str(), White);
-//            texture = SDL_CreateTextureFromSurface(renderer, surface);
-//            rect = { 100,j * 15,surface->w, surface->h };
-//            SDL_RenderCopy(renderer, texture, NULL, &rect);
-//            SDL_FreeSurface(surface);
-//            SDL_DestroyTexture(texture);
-//            surface = NULL;
-//            texture = NULL;
-//        }
-//        SDL_RenderPresent(renderer);
-//    }
-//}
-
 void cpu6502::write(uint16_t addr, uint8_t data)
 {
     //at addr in ram, write data
     busPtr->BusWrite(addr, data);
+    //ram[addr] = data;
+    //bus.BusWrite(addr, data);
 }
 
 uint16_t cpu6502::read(uint16_t addr)
 {
     //from addr in ram, read data
+    //return ram[addr];
     return busPtr->BusRead(addr);
+    //return bus.BusRead(addr);
 }
 
 //addressing mode
@@ -164,12 +89,20 @@ uint16_t cpu6502::absolute_x()
 {
     uint16_t addr = (read(pc++) | (read(pc++) << 8));
 
+    uint16_t start = addr & 0xff00;
+
     std::stringstream stream;
     stream << std::hex << addr;
     std::string result(stream.str());
     addr_string = std::string("$") + result + std::string(",X");
 
     addr += (uint16_t)X;
+
+    uint16_t end = addr & 0xff00;
+
+    if (start != end)
+        page_crossed = true;
+
     return addr;
 }
 
@@ -177,12 +110,20 @@ uint16_t cpu6502::absolute_y()
 {
     uint16_t addr = (read(pc++) | (read(pc++) << 8));
 
+    uint16_t start = addr & 0xff00;
+
     std::stringstream stream;
     stream << std::hex << addr;
     std::string result(stream.str());
     addr_string = std::string("$") + result + std::string(",Y");
 
     addr += (uint16_t)Y;
+
+    uint16_t end = addr & 0xff00;
+
+    if (start != end)
+        page_crossed = true;
+
     return addr;
 }
 
@@ -229,7 +170,17 @@ uint16_t cpu6502::indirect_y()
 
     uint16_t addr = read(pc++);
     uint16_t addr1 = (addr + 1) % 256;
-    uint16_t addr2 = read(addr) + (read(addr1) << 8) + Y;
+    uint16_t addr2 = read(addr) + (read(addr1) << 8);
+
+    uint16_t start = addr2 & 0xff00;
+
+    addr2 += Y;
+
+    uint16_t end = addr2 & 0xff00;
+
+    if (start != end)
+        page_crossed = true;
+
     return addr2;
 }
 
@@ -508,8 +459,12 @@ void cpu6502::OP_BCC(uint16_t addr)
     op_string = "BCC";
     if (!CAR_RES)
     {
+        uint16_t prevpc = pc;
         pc = addr;
+        if ((prevpc & 0xFF00) != (pc & 0xFF00))
+            page_crossed = true;
     }
+    branch_succeeds = true;
 }
 
 void cpu6502::OP_BCS(uint16_t addr)
@@ -517,8 +472,12 @@ void cpu6502::OP_BCS(uint16_t addr)
     op_string = "BCS";
     if (CAR_RES)
     {
+        uint16_t prevpc = pc;
         pc = addr;
+        if ((prevpc & 0xFF00) != (pc & 0xFF00))
+            page_crossed = true;
     }
+    branch_succeeds = true;
 }
 
 void cpu6502::OP_BEQ(uint16_t addr)
@@ -526,8 +485,12 @@ void cpu6502::OP_BEQ(uint16_t addr)
     op_string = "BEQ";
     if (ZER_RES)
     {
+        uint16_t prevpc = pc;
         pc = addr;
+        if ((prevpc & 0xFF00) != (pc & 0xFF00))
+            page_crossed = true;
     }
+    branch_succeeds = true;
 }
 
 void cpu6502::OP_BNE(uint16_t addr)
@@ -535,8 +498,12 @@ void cpu6502::OP_BNE(uint16_t addr)
     op_string = "BNE";
     if (!ZER_RES)
     {
+        uint16_t prevpc = pc;
         pc = addr;
+        if ((prevpc & 0xFF00) != (pc & 0xFF00))
+            page_crossed = true;
     }
+    branch_succeeds = true;
 }
 
 void cpu6502::OP_BMI(uint16_t addr)
@@ -544,8 +511,12 @@ void cpu6502::OP_BMI(uint16_t addr)
     op_string = "BMI";
     if (NEG_RES)
     {
+        uint16_t prevpc = pc;
         pc = addr;
+        if ((prevpc & 0xFF00) != (pc & 0xFF00))
+            page_crossed = true;
     }
+    branch_succeeds = true;
 }
 
 void cpu6502::OP_BPL(uint16_t addr)
@@ -553,8 +524,12 @@ void cpu6502::OP_BPL(uint16_t addr)
     op_string = "BPL";
     if (!NEG_RES)
     {
+        uint16_t prevpc = pc;
         pc = addr;
+        if ((prevpc & 0xFF00) != (pc & 0xFF00))
+            page_crossed = true;
     }
+    branch_succeeds = true;
 }
 
 void cpu6502::OP_BVC(uint16_t addr)
@@ -562,8 +537,12 @@ void cpu6502::OP_BVC(uint16_t addr)
     op_string = "BVC";
     if (!OVR_RES)
     {
+        uint16_t prevpc = pc;
         pc = addr;
+        if ((prevpc & 0xFF00) != (pc & 0xFF00))
+            page_crossed = true;
     }
+    branch_succeeds = true;
 }
 
 void cpu6502::OP_BVS(uint16_t addr)
@@ -571,8 +550,12 @@ void cpu6502::OP_BVS(uint16_t addr)
     op_string = "BVS";
     if (OVR_RES)
     {
+        uint16_t prevpc = pc;
         pc = addr;
+        if ((prevpc & 0xFF00) != (pc & 0xFF00))
+            page_crossed = true;
     }
+    branch_succeeds = true;
 }
 
 //Arithmetic
@@ -1411,58 +1394,56 @@ uint8_t cpu6502::decode(uint8_t op)
     {
         uint16_t addr = relative();
         OP_BCC(addr);
-        cycles = 2;
+        cycles = CYCLE_BRANCH(2) + CYCLE_CROSS();
         break;
     }
     case 0xB0:
     {
         uint16_t addr = relative();
         OP_BCS(addr);
-        cycles = 2;
+        cycles = CYCLE_BRANCH(2) + CYCLE_CROSS();
         break;
     }
     case 0xF0:
     {
         uint16_t addr = relative();
         OP_BEQ(addr);
-        cycles = 2;
+        cycles = CYCLE_BRANCH(2) + CYCLE_CROSS();
         break;
     }
     case 0x30:
     {
         uint16_t addr = relative();
         OP_BMI(addr);
-        cycles = 2;
+        cycles = CYCLE_BRANCH(2) + CYCLE_CROSS();
         break;
     }
     case 0xD0:
     {
         uint16_t addr = relative();
         OP_BNE(addr);
-        cycles = 2;
-        if (page_crossed)
-            cycles += 2;
+        cycles = CYCLE_BRANCH(2) + CYCLE_CROSS();
         break;
     }
     case 0x10:
     {
         uint16_t addr = relative();
         OP_BPL(addr);
-        cycles = 2;
+        cycles = CYCLE_BRANCH(2) + CYCLE_CROSS();
         break;
     }
     case 0x50:
     {
         uint16_t addr = relative();
         OP_BVC(addr);
-        cycles = 2;
+        cycles = CYCLE_BRANCH(2) + CYCLE_CROSS();
         break;
     }
     case 0x70:
     {
         uint16_t addr = relative();
         OP_BVS(addr);
-        cycles = 2;
+        cycles = CYCLE_BRANCH(2) + CYCLE_CROSS();
         break;
     }
     //ADC
