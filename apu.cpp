@@ -208,12 +208,13 @@ void NesApu::clock_Envelope()
 
 Sint16 NesApu::getSample()
 {
+	Sint16 result;
 	//result is between 0.0 and 1.0
-	Sint16 pulse_out = (Sint16)(95.52 / ((8128.0 / (output_sample + 0)) + 100));
+	float pulse_out = (95.52 / ((8128.0 / (output_sample + 0)) + 100));
 	//convert to signed 16 bit value
-	pulse_out = (Sint16)std::floor(pulse_out * 65535);
-	pulse_out ^= 0x8000;
-	return pulse_out;
+	result = (Sint16)std::floor(pulse_out * 65535);
+	result ^= 0x8000;
+	return result;
 }
 
 
