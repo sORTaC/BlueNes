@@ -4,12 +4,12 @@ work-in-progress nes emulator
 ![zelda2](https://user-images.githubusercontent.com/59201614/106418772-13c06e80-647d-11eb-93ef-ee724c84c47e.png)
 
 
-| Mappers  | 
-| -------- |
-| Mapper 0 | 
-| Mapper 1 | 
-| Mapper 2 |
-| Mapper 3 |
+| Mappers  | Completed |
+| -------- | --------- |
+| Mapper 0 | - []      |
+| Mapper 1 | - []      |
+| Mapper 2 | - []      |
+| Mapper 3 | - []      |
 
 helpful references:
 
