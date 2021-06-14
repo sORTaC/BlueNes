@@ -3,7 +3,7 @@ work-in-progress nes emulator
 
 ![zelda2](https://user-images.githubusercontent.com/59201614/106418772-13c06e80-647d-11eb-93ef-ee724c84c47e.png)
 
-Mappers Availible:
+## Mappers Availible:
 
 | Mappers  | Completed  |
 | -------- | ---------- |
@@ -49,6 +49,5 @@ http://forums.nesdev.com/viewtopic.php?t=13767
 
 https://wiki.nesdev.com/w/index.php/Nesdev_Wiki
 
----
 
 
