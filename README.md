@@ -6,9 +6,9 @@ work-in-progress nes emulator
 
 | Mappers  | Completed |
 | -------- | --------- |
-| Mapper 0 | - []      |
-| Mapper 1 | - []      |
-| Mapper 2 | - []      |
+| Mapper 0 | &#9745    |
+| Mapper 1 | &#9745    |
+| Mapper 2 | &#9745    |
 | Mapper 3 | - []      |
 
 helpful references:
