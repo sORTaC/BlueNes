@@ -1,6 +1,8 @@
 # wipNes
 work-in-progress nes emulator
 
+![zelda2](https://user-images.githubusercontent.com/59201614/106418772-13c06e80-647d-11eb-93ef-ee724c84c47e.png)
+
 
 | Mappers  | 
 | -------- |
@@ -8,9 +10,6 @@ work-in-progress nes emulator
 | Mapper 1 | 
 | Mapper 2 |
 | Mapper 3 |
-
-
-![zelda2](https://user-images.githubusercontent.com/59201614/106418772-13c06e80-647d-11eb-93ef-ee724c84c47e.png)
 
 helpful references:
 
