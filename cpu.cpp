@@ -1,85 +1,6 @@
 #include "cpu.h"
 #include "Bus.h"
 
-//void cpu6502::debugTerminal()
-//{
-//    SDL_Init(SDL_INIT_VIDEO);
-//    TTF_Init();
-//    SDL_Window* window = SDL_CreateWindow("Cpu Debug Terminal", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 640, 480, 0);
-//    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-//    TTF_Font* Sans = TTF_OpenFont("Padauk-Regular.ttf", 20);
-//
-//    int instruction_count = 0;
-//
-//    std::array<std::string, 30> opinfo;
-//    opinfo.fill("No Instruction Executed");
-//
-//    SDL_Surface* surface;
-//    SDL_Texture* texture;
-//    SDL_Rect rect;
-//    SDL_Color White = { 255, 255, 255 };
-//
-//    bool quit = false;
-//    SDL_Event event;
-//
-//    while (!quit)
-//    {
-//        std::vector<std::string> info;
-//
-//        while (SDL_PollEvent(&event))
-//        {
-//            if (event.type == SDL_QUIT)
-//            {
-//                quit = true;
-//            }
-//            if (event.type == SDL_KEYDOWN)
-//            {
-//                step_instruction();
-//                opinfo[instruction_count] = op_string + std::string(" ") + addr_string;
-//                instruction_count++;
-//                if (instruction_count >= 30)
-//                    instruction_count = 0;
-//            }
-//        }
-//
-//        info.push_back("PC: " + std::to_string(pc));
-//        info.push_back("A: " + std::to_string(A));
-//        info.push_back("X: " + std::to_string(X));
-//        info.push_back("Y: " + std::to_string(Y));
-//        info.push_back("SP: " + std::to_string(sp));
-//        info.push_back("FLG: " + std::to_string(status));
-//
-//        SDL_SetRenderDrawColor(renderer, 0, 0, 0, NULL);
-//        SDL_RenderClear(renderer);
-//
-//        //cpu status
-//        for (int i = 0; i < info.size(); i++)
-//        {
-//            surface = TTF_RenderText_Blended(Sans, info[i].c_str(), White);
-//            texture = SDL_CreateTextureFromSurface(renderer, surface);
-//            rect = { 0,15 * i,surface->w, surface->h };
-//            SDL_RenderCopy(renderer, texture, NULL, &rect);
-//            SDL_FreeSurface(surface);
-//            SDL_DestroyTexture(texture);
-//            surface = NULL;
-//            texture = NULL;
-//        }
-//        //instructions
-//        for(int j = 0; j < opinfo.size(); j++)
-//        {
-//            surface = TTF_RenderText_Blended(Sans, opinfo[j].c_str(), White);
-//            texture = SDL_CreateTextureFromSurface(renderer, surface);
-//            rect = { 100,j * 15,surface->w, surface->h };
-//            SDL_RenderCopy(renderer, texture, NULL, &rect);
-//            SDL_FreeSurface(surface);
-//            SDL_DestroyTexture(texture);
-//            surface = NULL;
-//            texture = NULL;
-//        }
-//        SDL_RenderPresent(renderer);
-//    }
-//}
-
 void cpu6502::write(uint16_t addr, uint8_t data)
 {
     //at addr in ram, write data
@@ -1958,7 +1879,7 @@ uint8_t cpu6502::decode(uint8_t op)
     }
     default:
     {
-        //printf("\nERROR for OPCODE[ 0x%X ]: Instruction is illegal, could not be completed, or doesn't exist. An error with the clock cycle might also be possible\n", op);
+        printf("\nERROR for OPCODE[ 0x%X ]: Instruction is illegal, could not be completed, or doesn't exist. An error with the clock cycle might also be possible\n", op);
     }
     }
     return cycles;
