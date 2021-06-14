@@ -1,16 +1,20 @@
 #include "Bus.h"
 
+SDL_AudioCVT cvt;
+
 Sint16 sound_buffer[735 * 6];
 
 int readPointer = 0;
 
 static void my_callback(void* userdata, Uint8* stream, int len) {
 
+	SDL_ConvertAudio(&cvt);
+
 	Sint16* stream16 = (Sint16*)stream;
 
 	for (int i = 0; i < (len/2); i++) 
 	{
-		stream16[i] = sound_buffer[readPointer] * 10;
+		stream16[i] = cvt.buf[readPointer] * 10;
 
 		if ((readPointer + 1) >= (735 * 6)) { readPointer = 0; }
 		else { readPointer++; }
@@ -44,7 +48,7 @@ Bus::Bus()
 
 void Bus::BusMapperSet()
 {
-	cartridge.mapperLoad("roms/tetris.nes");
+	cartridge.mapperLoad("roms/Tetris.nes");
 	if (cartridge.prgRamSize != 0)
 	{
 		for (int i = 0; i < 0x2000; i++) { BusWrite(0x6000 + i, cartridge.mapperReadRAM(i)); }
@@ -198,58 +202,75 @@ void Bus::run()
 	bool running = true;
 	writePointer = 0;
 	float downsample = 0.0;
+	SDL_BuildAudioCVT(&cvt, AUDIO_S16SYS, 1, 1.8 * 1000000, AUDIO_S16SYS, 1, 44.1 * 1000);
+	SDL_assert(cvt.needed);
+	cvt.len = 735 * 6 * sizeof(Sint16);
+	cvt.buf = (Uint8*)SDL_malloc(cvt.len * cvt.len_mult);
 	SDL_PauseAudioDevice(audio_device, 0);
 	while (running)
 	{
-		ppu->horizontal_mirroring = cartridge.mapper;
-
-		if (apu_raises_irq)
+		if ((writePointer != readPointer))
 		{
-			cpu->irq();
-			apu_raises_irq = false;
-		}
+			ppu->horizontal_mirroring = cartridge.mapper;
 
-		if (ppu->check_for_nmi()) {
-			cpu->nmi();
-			ppu->set_nmi_occured(0);
-		}
-
-		cycles = cpu->step_instruction();
-
-		for (int i = 0; i < cycles * 3; i++) {
-			ppu->step_ppu();
-		}
-
-		apu->step_apu(cycles);
-
-		downsample += cycles;
-
-		if ((downsample >= 40.5)/* && (writePointer != readPointer)*/)
-		{
-			sound_buffer[writePointer] = apu->getSample();
-			writePointer++;
-			if (writePointer >= (735 * 6))
+			if (apu_raises_irq)
 			{
-				writePointer = 0;
+				cpu->irq();
+				apu_raises_irq = false;
 			}
-			downsample -= 40.5;
-		}
 
-		control_cycles += cycles;
+			if (ppu->check_for_nmi()) {
+				cpu->nmi();
+				ppu->set_nmi_occured(0);
+			}
 
-		cycles = 0;
+			cycles = cpu->step_instruction();
 
-		if (control_cycles > 29780) {
-			SDL_Event event;
-			while (SDL_PollEvent(&event)) {
-				if (event.type == SDL_QUIT) {
-					running = false;
+			for (int i = 0; i < cycles * 3; i++) {
+				ppu->step_ppu();
+			}
+
+			apu->step_apu(cycles);
+
+			//downsample += cycles;
+			//if ((downsample >= 40.5))
+			//{
+			//	sound_buffer[writePointer] = apu->getSample();
+			//	writePointer++;
+			//	if (writePointer >= (735 * 6))
+			//	{
+			//		writePointer = 0;
+			//	}
+			//	downsample -= 40.5;
+			//}
+			
+			for (int i = 0; i < cycles; i++)
+			{
+				cvt.buf[writePointer] = apu->getSample();
+				writePointer++;
+				if (writePointer >= (735 * 6))
+				{
+					writePointer = 0;
 				}
 			}
-			uint8_t* kb = (uint8_t*)SDL_GetKeyboardState(NULL);
-			write_controller(kb);
-			control_cycles = 0;
+
+			control_cycles += cycles;
+
+			cycles = 0;
+
+			if (control_cycles > 29780) {
+				SDL_Event event;
+				while (SDL_PollEvent(&event)) {
+					if (event.type == SDL_QUIT) {
+						running = false;
+					}
+				}
+				uint8_t* kb = (uint8_t*)SDL_GetKeyboardState(NULL);
+				write_controller(kb);
+				control_cycles = 0;
+			}
 		}
 	}
+	SDL_CloseAudioDevice(audio_device);
 }
 
