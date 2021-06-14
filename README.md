@@ -3,13 +3,7 @@ work-in-progress nes emulator
 
 ![zelda2](https://user-images.githubusercontent.com/59201614/106418772-13c06e80-647d-11eb-93ef-ee724c84c47e.png)
 
-| Controls  |
-| -------- | ---------- |
-| Mapper 0 | &#9745;    |
-| Mapper 1 | &#9745;    |
-| Mapper 2 | &#9745;    |
-| Mapper 3 | &#9744;    |
-| Mapper 4 | &#9744;    |
+Mappers Availible:
 
 | Mappers  | Completed  |
 | -------- | ---------- |
@@ -19,11 +13,11 @@ work-in-progress nes emulator
 | Mapper 3 | &#9744;    |
 | Mapper 4 | &#9744;    |
 
-helpful references:
+##Helpful References:
 
 (https://wiki.nesdev.com/w/index.php/Nesdev_Wiki)
 
-(CPU):
+###(CPU):
 
 http://rubbermallet.org/fake6502.c
 
@@ -37,22 +31,19 @@ https://www.youtube.com/watch?v=qJgsuQoy9bc
 
 http://www.obelisk.me.uk/6502/reference.html
 
-
-(ROM and RAM):
-
-(PPU):
+###(PPU):
 
 https://bugzmanov.github.io/nes_ebook/chapter_6_1.html
 
 https://emudev.de/nes-emulator/overview/
 
-(APU):
+###(APU):
 
 https://www.slack.net/~ant/nes-emu/apu_ref.txt
 
 http://forums.nesdev.com/viewtopic.php?t=13767
 
-(Other/General):
+###(Other/General):
 
 https://wiki.nesdev.com/w/index.php/Nesdev_Wiki
 
