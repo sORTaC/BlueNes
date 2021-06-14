@@ -204,7 +204,7 @@ void Bus::run()
 	float downsample = 0.0;
 	SDL_BuildAudioCVT(&cvt, AUDIO_S16SYS, 1, 1.8 * 1000000, AUDIO_S16SYS, 1, 44.1 * 1000);
 	SDL_assert(cvt.needed);
-	cvt.len = 735 * 6 * sizeof(Sint16);
+	cvt.len = 4410;
 	cvt.buf = (Uint8*)SDL_malloc(cvt.len * cvt.len_mult);
 	SDL_PauseAudioDevice(audio_device, 0);
 	while (running)
@@ -232,23 +232,11 @@ void Bus::run()
 
 			apu->step_apu(cycles);
 
-			//downsample += cycles;
-			//if ((downsample >= 40.5))
-			//{
-			//	sound_buffer[writePointer] = apu->getSample();
-			//	writePointer++;
-			//	if (writePointer >= (735 * 6))
-			//	{
-			//		writePointer = 0;
-			//	}
-			//	downsample -= 40.5;
-			//}
-			
 			for (int i = 0; i < cycles; i++)
 			{
 				cvt.buf[writePointer] = apu->getSample();
 				writePointer++;
-				if (writePointer >= (735 * 6))
+				if (writePointer >= 4410)
 				{
 					writePointer = 0;
 				}
