@@ -61,7 +61,6 @@ public:
 		printf(std::string(addr_string).c_str());
 		printf("\n");
 	}
-	//void debugTerminal();
 
 	//Bus read and write, and load functions
 	void write(uint16_t addr, uint8_t data);
