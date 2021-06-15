@@ -6,6 +6,8 @@ Sint16 sound_buffer[735 * 6];
 
 int readPointer = 0;
 
+long long int readSamples = 0;
+
 static void my_callback(void* userdata, Uint8* stream, int len) {
 
 	SDL_ConvertAudio(&cvt);
@@ -18,6 +20,8 @@ static void my_callback(void* userdata, Uint8* stream, int len) {
 
 		if ((readPointer + 1) >= (735 * 6)) { readPointer = 0; }
 		else { readPointer++; }
+		
+		readSamples++;
 	}
 }
 
@@ -234,11 +238,14 @@ void Bus::run()
 
 			for (int i = 0; i < cycles; i++)
 			{
-				cvt.buf[writePointer] = apu->getSample();
-				writePointer++;
-				if (writePointer >= 4410)
+				if((writeSamples - readSamples) < 4403)
 				{
-					writePointer = 0;
+					cvt.buf[writePointer] = apu->getSample();
+					writePointer++;
+					if (writePointer >= 4410)
+					{
+						writePointer = 0;
+					}
 				}
 			}
 
