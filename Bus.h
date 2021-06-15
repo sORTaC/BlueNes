@@ -20,6 +20,7 @@ private:
 	bool apu_raises_irq;
 	uint8_t controller, controller_index;
 	SDL_AudioDeviceID audio_device;
+	long long int writeSamples;
 	int writePointer;
 public:
 	Bus();
