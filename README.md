@@ -14,6 +14,14 @@
 
 ---
 
+## Issues:
+1. Still haven't implemented a proper mapper class interface so you're going to have to manually change the mapper
+2. Still haven't implemented nrom
+3. A couple a bugs with mapping(i.e zelda transition screen error)
+4. Audio isn't done yet
+5. Still need to run Blaargs tests.
+---
+
 ## Helpful References:
 
 (https://wiki.nesdev.com/w/index.php/Nesdev_Wiki)
