@@ -247,6 +247,8 @@ void Bus::run()
 						for (int i = 0; i < cvt.len; i++)
 						{
 							sound_buffer[InitialWritePointer + i] = cvt.buf[i];
+							if ((InitialWritePointer + i) >= 4410)
+								InitialWritePointer = 0;
 						}
 						InitialWritePointer = writePointer;
 						writePointer = 0;
