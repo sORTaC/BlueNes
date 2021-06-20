@@ -14,7 +14,7 @@ static void my_callback(void* userdata, Uint8* stream, int len) {
 
 	for (int i = 0; i < (len / 2); i++)
 	{
-		stream16[i] = sound_buffer[i];
+		stream16[i] = sound_buffer[readPointer];
 
 		if ((readPointer + 1) >= (735 * 6)) { readPointer = 0; }
 		else { readPointer++; }
@@ -239,19 +239,18 @@ void Bus::run()
 			{
 				if ((writeSamples - readSamples) < 4403)
 				{
-					cvt.buf[writePointer] = apu->getSample();
-					writePointer++;
-					if (writePointer >= cvt.len)
+					cvt.buf[bufferWriteSamples] = apu->getSample();
+					bufferWriteSamples++;
+					if (bufferWriteSamples >= cvt.len)
 					{
 						SDL_ConvertAudio(&cvt);
-						for (int i = 0; i < cvt.len; i++)
+						for (int j = 0; j < 512; j++)
 						{
-							sound_buffer[InitialWritePointer + i] = cvt.buf[i];
-							if ((InitialWritePointer + i) >= 4410)
-								InitialWritePointer = 0;
+							sound_buffer[writePointer] = cvt.buf[j];
+							writePointer++;
+							writeSamples++;
 						}
-						InitialWritePointer = writePointer;
-						writePointer = 0;
+						bufferWriteSamples = 0;
 					}
 				}
 			}

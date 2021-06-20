@@ -22,6 +22,7 @@ private:
 	uint8_t controller, controller_index;
 	Mapper* PtrToMapper;
 	int writePointer, InitialWritePointer;
+	int bufferWriteSamples = 0;
 	long long int writeSamples;
 	std::string fpsTitle;
 	std::string romFileName;
