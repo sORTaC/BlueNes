@@ -248,6 +248,8 @@ void Bus::run()
 						{
 							sound_buffer[writePointer] = cvt.buf[j];
 							writePointer++;
+							if (writePointer >= 4410)
+								writePointer = 0;
 							writeSamples++;
 						}
 						bufferWriteSamples = 0;
