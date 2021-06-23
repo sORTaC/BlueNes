@@ -197,22 +197,35 @@ void Bus::init()
 	ppu->ppu_powerup();
 }
 
+void half_to_byte_array(Uint8* arr, int index, Sint16 value) {
+	memcpy(arr + index, &value, sizeof(Sint16));
+}
+
 void Bus::run()
 {
 	int cycles = 0;
+
 	int control_cycles = 0;
+
 	bool running = true;
+
 	writePointer = 0;
-	float downsample = 0.0;
+
 	InitialWritePointer = 0;
+
 	SDL_BuildAudioCVT(&cvt, AUDIO_S16SYS, 1, NES_SAMPLING_RATE, AUDIO_S16SYS, 1, DESIRED_SAMPLING_RATE);
+
 	SDL_assert(cvt.needed);
-	cvt.len = DEVICE_SAMPLES * (NES_SAMPLING_RATE/DESIRED_SAMPLING_RATE);
+
+	cvt.len = DEVICE_SAMPLES * (NES_SAMPLING_RATE/DESIRED_SAMPLING_RATE) * sizeof(Sint16);
+
 	cvt.buf = (Uint8*)SDL_malloc(cvt.len * cvt.len_mult);
+
 	SDL_PauseAudioDevice(audio_device, 0);
+
 	while (running)
 	{
-		if ((writePointer != readPointer))
+		if ((writeSamples - readSamples) < (4410 - 512 - 98))
 		{
 			ppu->horizontal_mirroring = cartridge.mapper;
 
@@ -237,23 +250,26 @@ void Bus::run()
 
 			for (int i = 0; i < cycles; i++)
 			{
-				if ((writeSamples - readSamples) < 4403)
+				*(uint16_t*)&cvt.buf[bufferWriteSamples] = apu->getSample();
+
+				bufferWriteSamples++;
+
+				if (bufferWriteSamples * 2 >= cvt.len)
 				{
-					cvt.buf[bufferWriteSamples] = apu->getSample();
-					bufferWriteSamples++;
-					if (bufferWriteSamples >= cvt.len)
+					SDL_ConvertAudio(&cvt);
+
+					for (int j = 0; j < cvt.len/2; j++)
 					{
-						SDL_ConvertAudio(&cvt);
-						for (int j = 0; j < 512; j++)
-						{
-							sound_buffer[writePointer] = cvt.buf[j];
-							writePointer++;
-							if (writePointer >= 4410)
-								writePointer = 0;
-							writeSamples++;
-						}
-						bufferWriteSamples = 0;
+						sound_buffer[writePointer] = cvt.buf[j];
+
+						writePointer++;
+
+						if (writePointer >= 4410)
+							writePointer = 0;
+
+						writeSamples++;
 					}
+					bufferWriteSamples = 0;
 				}
 			}
 
