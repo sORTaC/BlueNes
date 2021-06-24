@@ -246,15 +246,14 @@ void Bus::run()
 				ppu->step_ppu();
 			}
 
-			apu->step_apu(cycles);
 
 			Sint16* cvt_buf = (Sint16*)cvt.buf;
 
 			for (int i = 0; i < cycles; i++)
 			{
-				cvt_buf[bufferWriteSamples] = apu->getSample();
+				apu->step_apu(cycles);
 
-				//half_to_byte_array(cvt.buf, bufferWriteSamples, apu->getSample());
+				cvt_buf[bufferWriteSamples] = apu->getSample();
 
 				bufferWriteSamples++;
 
@@ -262,12 +261,10 @@ void Bus::run()
 				{
 					SDL_ConvertAudio(&cvt);
 
-					for (int j = 0; j < cvt.len_cvt/2; j++)
+					for (int j = 0; j < (cvt.len_cvt / 2); j++)
 					{
-						sound_buffer[writePointer] = cvt_buf[bufferWriteSamples];
-
+						sound_buffer[writePointer] = cvt_buf[j];
 						writePointer++;
-
 						if (writePointer >= 4410)
 							writePointer = 0;
 

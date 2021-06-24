@@ -372,6 +372,7 @@ Sint16 NesApu::getSample()
 {
 	d.output_sample = 0.0;
 	n.output_sample = 0.0;
+	//t.output_sample = 0.0;
 	Sint16 result;
 	//result is between 0.0 and 1.0
 	double pulse_out = (95.52 / ((8128.0 / (p1.output_sample + p2.output_sample)) + 100));
@@ -427,24 +428,66 @@ void NesApu::SQ2clock_Sweep()
 	}
 }
 
+bool NesApu::isSweepForcingSilence()
+{
+	if (p1.period < 8){
+		return true;
+	}
+	else if (!p1.sweep_negate && (((p1.period + (p1.period >> p1.sweep_shift)) >= 0x800))) {
+		return true;
+	}
+	else { return false; }
+}
+
+bool NesApu::SQ2isSweepForcingSilence()
+{
+	if (p2.period < 8){
+		return true;
+	}
+	else if (!p2.sweep_negate && (((p2.period + (p2.period >> p2.sweep_shift)) >= 0x800))) {
+		return true;
+	}
+	else { return false; }
+}
+
 void NesApu::step_apu(int cycles)
+{
+	switch_flip = !switch_flip;
+
+	if (switch_flip == true)
+	{
+		step_pulse(cycles);
+	}
+
+	if (cpu_cycles >= cycles_to_next_sequence)
+	{
+		clock_FrameSequencer();
+		cpu_cycles -= cycles_to_next_sequence;
+		cycles_to_next_sequence += 7458;
+		if ((mode && (cycles_to_next_sequence >= 37281)) || (!mode && (cycles_to_next_sequence >= 29828)))
+		{
+			cycles_to_next_sequence = 0;
+		}
+	}
+	else
+	{
+		cpu_cycles += cycles;
+	}
+
+	step_triangle(cycles);
+}
+
+void NesApu::step_pulse(int cycles)
 {
 	for (int i = 0; i < cycles; i++)
 	{
-		if (p1.freq_counter > 0)
-		{
-			p1.freq_counter--;
-		}
-		else
-		{
+		if (p1.freq_counter > 0) { p1.freq_counter--; }
+		else {
 			p1.freq_counter = p1.period;
 			p1.duty_counter = (p1.duty_counter + 1) & 0x7;
 		}
 
-		if (p2.freq_counter > 0)
-		{
-			p2.freq_counter--;
-		}
+		if (p2.freq_counter > 0) { p2.freq_counter--; }
 		else
 		{
 			p2.freq_counter = p2.period;
@@ -483,38 +526,20 @@ void NesApu::step_apu(int cycles)
 			p2.output_sample = 0;
 		}
 	}
+}
 
-		if (cpu_cycles >= cycles_to_next_sequence)
-		{
-			clock_FrameSequencer();
-			cpu_cycles -= cycles_to_next_sequence;
-			cycles_to_next_sequence += 7458;
-			if ((mode && (cycles_to_next_sequence >= 37281)) || (!mode && (cycles_to_next_sequence >= 29828)))
-			{
-				cycles_to_next_sequence = 0;
-			}
-		}
-		else
-		{
-			cpu_cycles += cycles;
-		}
-
+void NesApu::step_triangle(int cycles)
+{
 	for (int i = 0; i < cycles; i++)
 	{
 		t.ultrasonic = false;
-		if (t.freq_timer < 2 && t.freq_counter == 0)
-			t.ultrasonic = true;
+		if (t.freq_timer < 2 && t.freq_counter == 0) t.ultrasonic = true;
 
 		t.clock_triunit = true;
 
-		if (t.length_counter == 0) 
-			t.clock_triunit = false;
-
-		if (t.linear_counter == 0) 
-			t.clock_triunit = false;
-
-		if (t.ultrasonic) 
-			t.clock_triunit = false;
+		if (t.length_counter == 0) t.clock_triunit = false;
+		if (t.linear_counter == 0) t.clock_triunit = false;
+		if (t.ultrasonic) t.clock_triunit = false;
 
 		if (t.clock_triunit)
 		{
@@ -527,33 +552,8 @@ void NesApu::step_apu(int cycles)
 			}
 		}
 
-		if (t.ultrasonic)
-			t.output_sample = 7.5;
-		else if (t.tri_step & 0x10)
-			t.output_sample = t.tri_step ^ 0x1F;
-		else
-			t.output_sample = t.tri_step;
+		if (t.ultrasonic) t.output_sample = 7.5;
+		else if (t.tri_step & 0x10) t.output_sample = t.tri_step ^ 0x1F;
+		else t.output_sample = t.tri_step;
 	}
-}
-
-bool NesApu::isSweepForcingSilence()
-{
-	if (p1.period < 8){
-		return true;
-	}
-	else if (!p1.sweep_negate && (((p1.period + (p1.period >> p1.sweep_shift)) >= 0x800))) {
-		return true;
-	}
-	else { return false; }
-}
-
-bool NesApu::SQ2isSweepForcingSilence()
-{
-	if (p2.period < 8){
-		return true;
-	}
-	else if (!p2.sweep_negate && (((p2.period + (p2.period >> p2.sweep_shift)) >= 0x800))) {
-		return true;
-	}
-	else { return false; }
 }

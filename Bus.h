@@ -9,6 +9,8 @@
 #include "ppu.h"
 #include "apu.h"
 
+inline void half_to_byte_array(Uint8* arr, int index, Sint16 value);
+
 class Bus
 {
 private:

@@ -6,9 +6,9 @@
 #include <iostream>
 #include <cstdio>
 
-#define DEVICE_SAMPLES 512
-#define NES_SAMPLING_RATE 1789773
-#define DESIRED_SAMPLING_RATE 44100
+constexpr int DEVICE_SAMPLES = 512;
+constexpr float NES_SAMPLING_RATE = 1789773;
+constexpr float DESIRED_SAMPLING_RATE = 44100;
 
 typedef struct PULSE
 {
@@ -85,6 +85,7 @@ private:
 	bool Triangle_enable = false;
 	bool irq_pending = false;
 	bool irq_disable = false;
+	bool switch_flip = false;
 	
 	PULSE p1;
 	PULSE p2;
@@ -123,6 +124,8 @@ public:
 	//
 
 	void step_apu(int);
+	void step_pulse(int);
+	void step_triangle(int);
 };
 
 #endif
