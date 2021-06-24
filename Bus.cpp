@@ -249,9 +249,10 @@ void Bus::run()
 
 			Sint16* cvt_buf = (Sint16*)cvt.buf;
 
+			apu->step_apu(cycles);
+
 			for (int i = 0; i < cycles; i++)
 			{
-				apu->step_apu(cycles);
 
 				cvt_buf[bufferWriteSamples] = apu->getSample();
 
